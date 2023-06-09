@@ -13,60 +13,63 @@ pd.options.mode.chained_assignment = None  # default='warn'
 import matplotlib.pyplot as plt
 import ta
 from ta.trend import macd
+from ta.momentum import rsi
 
 
-class BolTrend():
+class HullSuite():
     def __init__(
         self,
         df,
         type=["long"],
-        bol_window = 100,
-        bol_std = 2.25,
-        min_bol_spread = 0,
-        long_ma_window = 500,
+        short_window = 9,
+        long_window = 18,
         SL = 0,
         TP = 0
     ):
         self.df = df
         self.use_long = True if "long" in type else False
         self.use_short = True if "short" in type else False
-        self.bol_window = bol_window
-        self.bol_std = bol_std
-        self.min_bol_spread = min_bol_spread
-        self.long_ma_window = long_ma_window
+        self.short_window = short_window
+        self.long_window = long_window
+
         self.SL = SL
         self.TP = TP
         if self.SL == 0:
             self.SL = -10000
         if self.TP == 0:
             self.TP = 10000
-        
+
+    def calculate_hma(self, data, window=9):
+        close = data['close']
+        hma = 2 * ta.trend.sma_indicator(close=close, window=int(window / 2)) - ta.trend.sma_indicator(close=close, window=window)
+        hma = ta.trend.ema_indicator(close=hma, window=int(window ** 0.5))
+        return hma
+
     def populate_indicators(self):
         # -- Clear dataset --
         df = self.df
         df.drop(columns=df.columns.difference(['open','high','low','close','volume']), inplace=True)
-        
+
         # -- Populate indicators --
-        bol_band = ta.volatility.BollingerBands(close=df["close"], window=self.bol_window, window_dev=self.bol_std)
-        df["lower_band"] = bol_band.bollinger_lband()
-        df["higher_band"] = bol_band.bollinger_hband()
-        df["ma_band"] = bol_band.bollinger_mavg()
 
-        epsi = 0.1
-        df["ma_band_+_epsi"] = df["ma_band"] + df["ma_band"] * epsi / 100
-        df["ma_band_-_epsi"] = df["ma_band"] - df["ma_band"] * epsi / 100
+        # Calculate HMA
+        # df["hma"] = ta.trend.hull_moving_average(close=df["close"], window=9)
+        df["hma"] = self.calculate_hma(df, self.short_window)
 
-        df['long_ma'] = ta.trend.sma_indicator(close=df['close'], window=self.long_ma_window)
+        # Calculate HT
+        df["ht"] = ta.trend.ema_indicator(close=df["close"], window=self.short_window)
 
-        df = get_n_columns(df, ["ma_band", "lower_band", "higher_band", "close"], 1)
+        # Calculate HO
+        df["ho"] = ta.trend.ema_indicator(close=df["close"], window=self.short_window) - ta.trend.ema_indicator(close=df["close"], window=18)
 
-        df['RSI'] = ta.momentum.rsi(close=df['close'], window=14, fillna=True)
+        # Calculate RSI
+        df["rsi"] = ta.momentum.rsi(close=df['close'], window=14, fillna=True)
 
-        # df['macd'] = ta.trend.MACD(close=df['close'])
-        df['macd'] = macd(close=df['close'], window_slow=26, window_fast=12)
-        df['macd_shift'] = df['macd'].shift(1)
+        # Calculate MACD
+        df["macd"] = ta.trend.macd_diff(close=df['close'], window_slow=26, window_fast=12, window_sign=9)
+        df["signal"] = ta.trend.macd_signal(close=df['close'], window_slow=26, window_fast=12, window_sign=9)
 
-        self.df = df    
+        self.df = df
         return self.df
     
     def populate_buy_sell(self): 
@@ -80,40 +83,38 @@ class BolTrend():
         if self.use_long:
             # -- Populate open long market --
             df.loc[
-                (df['n1_close'] < df['n1_higher_band']) 
-                & (df['close'] > df['higher_band']) 
-                & ((df['n1_higher_band'] - df['n1_lower_band']) / df['n1_lower_band'] > self.min_bol_spread)
-                & (df["close"] > df["long_ma"])
-                # & (df["RSI"] > 50)
+                (df['hma'] > df['ht'])
+                & (df['ht'] > df['ho'])
+                # & (df['rsi'] < 30)
+                & (df['macd'] > df['signal'])
                 , "open_long_market"
             ] = True
         
             # -- Populate close long market --
             df.loc[
-                (df['close'] < df['ma_band'])
-                # (df['close'] < df['ma_band_+_epsi'])
-                # | ((df['macd'] < 0) & (df['macd_shift'] > 0))
-                # (df['macd'] < 0)
+                (df['hma'] < df['ht'])
+                | (df['ht'] < df['ho'])
+                | (df['rsi'] > 70)
+                | (df['macd'] < df['signal'])
                 , "close_long_market"
             ] = True
 
         if self.use_short:
             # -- Populate open short market --
             df.loc[
-                (df['n1_close'] > df['n1_lower_band']) 
-                & (df['close'] < df['lower_band']) 
-                & ((df['n1_higher_band'] - df['n1_lower_band']) / df['n1_lower_band'] > self.min_bol_spread)
-                & (df["close"] < df["long_ma"])
-                # & (df["RSI"] < 50)
+                (df['hma'] < df['ht'])
+                & (df['ht'] < df['ho'])
+                # & (df['rsi'] > 70)
+                & (df['macd'] < df['signal'])
                 , "open_short_market"
             ] = True
         
             # -- Populate close short market --
             df.loc[
-                (df['close'] > df['ma_band'])
-                # (df['close'] > df['ma_band_-_epsi'])
-                # | ((df['macd'] > 0) & (df['macd_shift'] < 0))
-                # (df['macd'] > 0)
+                (df['hma'] > df['ht'])
+                | (df['ht'] > df['ho'])
+                | (df['rsi'] < 30)
+                | (df['macd'] > df['signal'])
                 , "close_short_market"
             ] = True
         

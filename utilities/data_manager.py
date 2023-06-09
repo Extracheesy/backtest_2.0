@@ -229,7 +229,7 @@ class ExchangeDataManager:
                 if tests == 3:
                     raise TooManyError
 
-    async def is_data_missing(self, file_name, last_dt, start_date) -> bool | datetime:
+    async def is_data_missing(self, file_name, last_dt, start_date): # -> bool | datetime:
 
         await self.exchange.close()
 

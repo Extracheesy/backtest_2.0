@@ -2,30 +2,34 @@ import sys
 
 sys.path.append('../..')
 
-from utilities.backtesting import basic_single_asset_backtest, plot_wallet_vs_asset, get_metrics, get_n_columns, plot_sharpe_evolution, plot_bar_by_month
+from utilities.backtesting import basic_single_asset_backtest, plot_wallet_vs_asset, get_metrics, get_n_columns, \
+    plot_sharpe_evolution, plot_bar_by_month
 from utilities.custom_indicators import get_n_columns
 
 import pandas as pd
 
 pd.options.mode.chained_assignment = None  # default='warn'
 
-
 import matplotlib.pyplot as plt
 import ta
-from ta.trend import macd
 
 
-class BolTrend():
+class MeanReversion():
     def __init__(
-        self,
-        df,
-        type=["long"],
-        bol_window = 100,
-        bol_std = 2.25,
-        min_bol_spread = 0,
-        long_ma_window = 500,
-        SL = 0,
-        TP = 0
+            self,
+            df,
+            type=["long"],
+            bol_window=100,
+            bol_std=2.25,
+            min_bol_spread=0,
+            long_ma_window=500,
+
+            mean_window_size=10,  # Window size for calculating the mean and standard deviation
+            mean_entry_threshold=1.5,  # Number of standard deviations for entry
+            mean_exit_threshold=0.5,  # Number of standard deviations for exit
+
+            SL=0,
+            TP=0
     ):
         self.df = df
         self.use_long = True if "long" in type else False
@@ -34,27 +38,31 @@ class BolTrend():
         self.bol_std = bol_std
         self.min_bol_spread = min_bol_spread
         self.long_ma_window = long_ma_window
+
+        self.mean_window_size = mean_window_size
+        self.mean_entry_threshold = mean_entry_threshold
+        self.mean_exit_threshold = mean_exit_threshold
+
+        self.rsi_oversold_threshold = 30 # RSI oversold threshold for long entry
+        self.rsi_overbought_threshold = 70  # RSI overbought threshold for short entry
+
         self.SL = SL
         self.TP = TP
         if self.SL == 0:
             self.SL = -10000
         if self.TP == 0:
             self.TP = 10000
-        
+
     def populate_indicators(self):
         # -- Clear dataset --
         df = self.df
-        df.drop(columns=df.columns.difference(['open','high','low','close','volume']), inplace=True)
-        
+        df.drop(columns=df.columns.difference(['open', 'high', 'low', 'close', 'volume']), inplace=True)
+
         # -- Populate indicators --
         bol_band = ta.volatility.BollingerBands(close=df["close"], window=self.bol_window, window_dev=self.bol_std)
         df["lower_band"] = bol_band.bollinger_lband()
         df["higher_band"] = bol_band.bollinger_hband()
         df["ma_band"] = bol_band.bollinger_mavg()
-
-        epsi = 0.1
-        df["ma_band_+_epsi"] = df["ma_band"] + df["ma_band"] * epsi / 100
-        df["ma_band_-_epsi"] = df["ma_band"] - df["ma_band"] * epsi / 100
 
         df['long_ma'] = ta.trend.sma_indicator(close=df['close'], window=self.long_ma_window)
 
@@ -62,64 +70,81 @@ class BolTrend():
 
         df['RSI'] = ta.momentum.rsi(close=df['close'], window=14, fillna=True)
 
-        # df['macd'] = ta.trend.MACD(close=df['close'])
-        df['macd'] = macd(close=df['close'], window_slow=26, window_fast=12)
-        df['macd_shift'] = df['macd'].shift(1)
+        # Calculate mean and standard deviation
+        df['mean'] = df['close'].rolling(window=self.mean_window_size).mean()
+        df['std'] = df['close'].rolling(window=self.mean_window_size).std()
+        df['previous_mean'] = df['mean'].shift(1)
 
-        self.df = df    
+        self.df = df
         return self.df
-    
-    def populate_buy_sell(self): 
+
+    def populate_buy_sell(self):
         df = self.df
         # -- Initiate populate --
         df["open_long_market"] = False
         df["close_long_market"] = False
         df["open_short_market"] = False
         df["close_short_market"] = False
-        
+
         if self.use_long:
             # -- Populate open long market --
             df.loc[
-                (df['n1_close'] < df['n1_higher_band']) 
-                & (df['close'] > df['higher_band']) 
+
+                # (df['close'] < df['mean'] - self.mean_entry_threshold * df['std'])
+                # & (df['close'] < df['previous_mean'])
+                # & (df['RSI'] < self.rsi_oversold_threshold)
+
+                (df['n1_close'] > df['n1_lower_band'])
+                & (df['close'] < df['lower_band'])
                 & ((df['n1_higher_band'] - df['n1_lower_band']) / df['n1_lower_band'] > self.min_bol_spread)
-                & (df["close"] > df["long_ma"])
+                & (df["close"] < df["long_ma"])
                 # & (df["RSI"] > 50)
+
+
                 , "open_long_market"
             ] = True
-        
+
             # -- Populate close long market --
             df.loc[
-                (df['close'] < df['ma_band'])
-                # (df['close'] < df['ma_band_+_epsi'])
-                # | ((df['macd'] < 0) & (df['macd_shift'] > 0))
-                # (df['macd'] < 0)
+
+                # (df['close'] > df['mean'] - self.mean_exit_threshold * df['std'])
+
+                (df['close'] > df['ma_band'])
+
                 , "close_long_market"
             ] = True
 
         if self.use_short:
             # -- Populate open short market --
             df.loc[
-                (df['n1_close'] > df['n1_lower_band']) 
-                & (df['close'] < df['lower_band']) 
+
+                # (df['close'] > df['mean'] + self.mean_entry_threshold * df['std'])
+                # & (df['close'] > df['previous_mean'])
+                # & (df['RSI'] > self.rsi_overbought_threshold)
+
+                (df['n1_close'] < df['n1_higher_band'])
+                & (df['close'] > df['higher_band'])
                 & ((df['n1_higher_band'] - df['n1_lower_band']) / df['n1_lower_band'] > self.min_bol_spread)
-                & (df["close"] < df["long_ma"])
+                & (df["close"] > df["long_ma"])
                 # & (df["RSI"] < 50)
+
                 , "open_short_market"
             ] = True
-        
+
             # -- Populate close short market --
             df.loc[
-                (df['close'] > df['ma_band'])
-                # (df['close'] > df['ma_band_-_epsi'])
-                # | ((df['macd'] > 0) & (df['macd_shift'] < 0))
-                # (df['macd'] > 0)
+
+                (df['close'] < df['ma_band'])
+
+                # (df['close'] > df['mean'] + self.mean_exit_threshold * df['std'])
+
+
                 , "close_short_market"
             ] = True
-        
-        self.df = df   
+
+        self.df = df
         return self.df
-        
+
     def run_backtest(self, initial_wallet=1000, leverage=1):
         df = self.df[:]
         wallet = initial_wallet
@@ -132,7 +157,7 @@ class BolTrend():
         current_position = None
 
         for index, row in df.iterrows():
-            
+
             # -- Add daily report --
             current_day = index.day
             if previous_day != current_day:
@@ -150,20 +175,22 @@ class BolTrend():
                         temp_wallet += temp_wallet * trade_result
                         fee = temp_wallet * taker_fee
                         temp_wallet -= fee
-                    
+
                 days.append({
-                    "day":str(index.year)+"-"+str(index.month)+"-"+str(index.day),
-                    "wallet":temp_wallet,
-                    "price":row['close']
+                    "day": str(index.year) + "-" + str(index.month) + "-" + str(index.day),
+                    "wallet": temp_wallet,
+                    "price": row['close']
                 })
             previous_day = current_day
             if current_position:
-            # -- Check for closing position --
+                # -- Check for closing position --
                 if current_position['side'] == "LONG":
                     # -- Close LONG market --
-                    if row['close_long_market'] or self.action_sl_tp(row, current_position, leverage, wallet):  # MODIF CEDE ADD SL AND TF IN THIS TEST
+                    if row['close_long_market'] or self.action_sl_tp(row, current_position, leverage,
+                                                                     wallet):  # MODIF CEDE ADD SL AND TF IN THIS TEST
                         close_price = row['close']
-                        trade_result = ((close_price - current_position['price']) / current_position['price']) * leverage
+                        trade_result = ((close_price - current_position['price']) / current_position[
+                            'price']) * leverage
                         wallet += wallet * trade_result
                         fee = wallet * taker_fee
                         wallet -= fee
@@ -177,17 +204,19 @@ class BolTrend():
                             "close_price": close_price,
                             "open_fee": current_position['fee'],
                             "close_fee": fee,
-                            "open_trade_size":current_position['size'],
+                            "open_trade_size": current_position['size'],
                             "close_trade_size": wallet,
                             "wallet": wallet
                         })
                         current_position = None
-                        
+
                 elif current_position['side'] == "SHORT":
                     # -- Close SHORT Market --
-                    if row['close_short_market'] or self.action_sl_tp(row, current_position, leverage, wallet): # MODIF CEDE ADD SL AND TF IN THIS TEST
+                    if row['close_short_market'] or self.action_sl_tp(row, current_position, leverage,
+                                                                      wallet):  # MODIF CEDE ADD SL AND TF IN THIS TEST
                         close_price = row['close']
-                        trade_result = ((current_position['price'] - close_price) / current_position['price']) * leverage
+                        trade_result = ((current_position['price'] - close_price) / current_position[
+                            'price']) * leverage
                         wallet += wallet * trade_result
                         fee = wallet * taker_fee
                         wallet -= fee
@@ -219,7 +248,7 @@ class BolTrend():
                         "size": pos_size,
                         "date": index,
                         "price": open_price,
-                        "fee":fee,
+                        "fee": fee,
                         "reason": "Market",
                         "side": "LONG",
                     }
@@ -232,12 +261,11 @@ class BolTrend():
                         "size": pos_size,
                         "date": index,
                         "price": open_price,
-                        "fee":fee,
+                        "fee": fee,
                         "reason": "Market",
                         "side": "SHORT"
                     }
-                    
-                    
+
         df_days = pd.DataFrame(days)
         df_days['day'] = pd.to_datetime(df_days['day'])
         df_days = df_days.set_index(df_days['day'])
@@ -248,8 +276,8 @@ class BolTrend():
             return None
         else:
             df_trades['open_date'] = pd.to_datetime(df_trades['open_date'])
-            df_trades = df_trades.set_index(df_trades['open_date'])  
-        
+            df_trades = df_trades.set_index(df_trades['open_date'])
+
         return get_metrics(df_trades, df_days) | {
             "wallet": wallet,
             "trades": df_trades,
@@ -273,6 +301,5 @@ class BolTrend():
             else:
                 return False
         return False
-        
 
 

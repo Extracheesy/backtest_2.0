@@ -157,8 +157,9 @@ class ExchangeDataManager:
                 file_path = f"{self.path_data}/{interval}/"
                 os.makedirs(file_path, exist_ok=True)
                 file_name = f"{file_path}{coin.replace('/', '-')}.csv"
-
+                print("filename: ", file_name)
                 dt_or_false = await self.is_data_missing(file_name, last_dt, str(start_date))
+                # dt_or_false = True  # CEDE DEBUG
 
                 if dt_or_false:
 

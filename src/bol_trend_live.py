@@ -12,10 +12,9 @@ pd.options.mode.chained_assignment = None  # default='warn'
 
 import matplotlib.pyplot as plt
 import ta
-from ta.trend import macd
 
 
-class BolTrend():
+class BolTrendLive():
     def __init__(
         self,
         df,
@@ -24,8 +23,6 @@ class BolTrend():
         bol_std = 2.25,
         min_bol_spread = 0,
         long_ma_window = 500,
-        SL = 0,
-        TP = 0
     ):
         self.df = df
         self.use_long = True if "long" in type else False
@@ -34,12 +31,6 @@ class BolTrend():
         self.bol_std = bol_std
         self.min_bol_spread = min_bol_spread
         self.long_ma_window = long_ma_window
-        self.SL = SL
-        self.TP = TP
-        if self.SL == 0:
-            self.SL = -10000
-        if self.TP == 0:
-            self.TP = 10000
         
     def populate_indicators(self):
         # -- Clear dataset --
@@ -52,20 +43,10 @@ class BolTrend():
         df["higher_band"] = bol_band.bollinger_hband()
         df["ma_band"] = bol_band.bollinger_mavg()
 
-        epsi = 0.1
-        df["ma_band_+_epsi"] = df["ma_band"] + df["ma_band"] * epsi / 100
-        df["ma_band_-_epsi"] = df["ma_band"] - df["ma_band"] * epsi / 100
-
         df['long_ma'] = ta.trend.sma_indicator(close=df['close'], window=self.long_ma_window)
 
         df = get_n_columns(df, ["ma_band", "lower_band", "higher_band", "close"], 1)
-
-        df['RSI'] = ta.momentum.rsi(close=df['close'], window=14, fillna=True)
-
-        # df['macd'] = ta.trend.MACD(close=df['close'])
-        df['macd'] = macd(close=df['close'], window_slow=26, window_fast=12)
-        df['macd_shift'] = df['macd'].shift(1)
-
+        
         self.df = df    
         return self.df
     
@@ -83,17 +64,13 @@ class BolTrend():
                 (df['n1_close'] < df['n1_higher_band']) 
                 & (df['close'] > df['higher_band']) 
                 & ((df['n1_higher_band'] - df['n1_lower_band']) / df['n1_lower_band'] > self.min_bol_spread)
-                & (df["close"] > df["long_ma"])
-                # & (df["RSI"] > 50)
+                & (df["close"] > df["long_ma"]) 
                 , "open_long_market"
             ] = True
         
             # -- Populate close long market --
             df.loc[
-                (df['close'] < df['ma_band'])
-                # (df['close'] < df['ma_band_+_epsi'])
-                # | ((df['macd'] < 0) & (df['macd_shift'] > 0))
-                # (df['macd'] < 0)
+                (df['close'] < df['ma_band']) 
                 , "close_long_market"
             ] = True
 
@@ -104,16 +81,12 @@ class BolTrend():
                 & (df['close'] < df['lower_band']) 
                 & ((df['n1_higher_band'] - df['n1_lower_band']) / df['n1_lower_band'] > self.min_bol_spread)
                 & (df["close"] < df["long_ma"])
-                # & (df["RSI"] < 50)
                 , "open_short_market"
             ] = True
         
             # -- Populate close short market --
             df.loc[
-                (df['close'] > df['ma_band'])
-                # (df['close'] > df['ma_band_-_epsi'])
-                # | ((df['macd'] > 0) & (df['macd_shift'] < 0))
-                # (df['macd'] > 0)
+                (df['close'] > df['ma_band']) 
                 , "close_short_market"
             ] = True
         
@@ -159,9 +132,9 @@ class BolTrend():
             previous_day = current_day
             if current_position:
             # -- Check for closing position --
-                if current_position['side'] == "LONG":
+                if current_position['side'] == "LONG":                     
                     # -- Close LONG market --
-                    if row['close_long_market'] or self.action_sl_tp(row, current_position, leverage, wallet):  # MODIF CEDE ADD SL AND TF IN THIS TEST
+                    if row['close_long_market']:
                         close_price = row['close']
                         trade_result = ((close_price - current_position['price']) / current_position['price']) * leverage
                         wallet += wallet * trade_result
@@ -185,7 +158,7 @@ class BolTrend():
                         
                 elif current_position['side'] == "SHORT":
                     # -- Close SHORT Market --
-                    if row['close_short_market'] or self.action_sl_tp(row, current_position, leverage, wallet): # MODIF CEDE ADD SL AND TF IN THIS TEST
+                    if row['close_short_market']:
                         close_price = row['close']
                         trade_result = ((current_position['price'] - close_price) / current_position['price']) * leverage
                         wallet += wallet * trade_result
@@ -254,25 +227,7 @@ class BolTrend():
             "wallet": wallet,
             "trades": df_trades,
             "days": df_days
-        }
-
-    def action_sl_tp(self, row, position, leverage, wallet):
-        close_price = row['close']
-        if position["side"] == "LONG":
-            trade_result = ((close_price - position['price']) / position['price']) * leverage * 100
-            if trade_result <= self.SL or trade_result >= self.TP:
-                print("SL TP")
-                return True
-            else:
-                return False
-        elif position["side"] == "SHORT":
-            trade_result = ((position['price'] - close_price) / position['price']) * leverage * 100
-            if trade_result <= self.SL or trade_result >= self.TP:
-                print("SL TP")
-                return True
-            else:
-                return False
-        return False
+        }       
         
 
 

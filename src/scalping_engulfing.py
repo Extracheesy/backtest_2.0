@@ -9,23 +9,27 @@ import pandas as pd
 
 pd.options.mode.chained_assignment = None  # default='warn'
 
+from datetime import datetime
+from datetime import timedelta
 
 import matplotlib.pyplot as plt
 import ta
-from ta.trend import macd
+import talib
+
+import ta
+from ta.momentum import RSIIndicator
 
 
-class BolTrend():
+class ScalpingEngulfing():
     def __init__(
         self,
         df,
         type=["long"],
-        bol_window = 100,
+        bol_window = 200,
         bol_std = 2.25,
         min_bol_spread = 0,
-        long_ma_window = 500,
-        SL = 0,
-        TP = 0
+        long_ma_window = 100,
+        rsi_timeperiod=14,
     ):
         self.df = df
         self.use_long = True if "long" in type else False
@@ -34,12 +38,7 @@ class BolTrend():
         self.bol_std = bol_std
         self.min_bol_spread = min_bol_spread
         self.long_ma_window = long_ma_window
-        self.SL = SL
-        self.TP = TP
-        if self.SL == 0:
-            self.SL = -10000
-        if self.TP == 0:
-            self.TP = 10000
+        self.rsi_timeperiod = rsi_timeperiod
         
     def populate_indicators(self):
         # -- Clear dataset --
@@ -47,24 +46,29 @@ class BolTrend():
         df.drop(columns=df.columns.difference(['open','high','low','close','volume']), inplace=True)
         
         # -- Populate indicators --
+
+        eng = talib.CDLENGULFING(df.open, df.high, df.low, df.close)
+
+        df['eng'] = eng
+
         bol_band = ta.volatility.BollingerBands(close=df["close"], window=self.bol_window, window_dev=self.bol_std)
         df["lower_band"] = bol_band.bollinger_lband()
         df["higher_band"] = bol_band.bollinger_hband()
         df["ma_band"] = bol_band.bollinger_mavg()
 
-        epsi = 0.1
-        df["ma_band_+_epsi"] = df["ma_band"] + df["ma_band"] * epsi / 100
-        df["ma_band_-_epsi"] = df["ma_band"] - df["ma_band"] * epsi / 100
-
         df['long_ma'] = ta.trend.sma_indicator(close=df['close'], window=self.long_ma_window)
 
-        df = get_n_columns(df, ["ma_band", "lower_band", "higher_band", "close"], 1)
+        rsi = RSIIndicator(close=df["close"], window=self.rsi_timeperiod)
+        df["rsi"] = rsi.rsi()
 
-        df['RSI'] = ta.momentum.rsi(close=df['close'], window=14, fillna=True)
+        df['return'] = df['close'].pct_change()
+        df['return'] = df['return'] * 100
 
-        # df['macd'] = ta.trend.MACD(close=df['close'])
-        df['macd'] = macd(close=df['close'], window_slow=26, window_fast=12)
-        df['macd_shift'] = df['macd'].shift(1)
+        # df = get_n_columns(df, ["ma_band", "lower_band", "higher_band", "close"], 1)
+
+        df.dropna(inplace=True)
+        df = df[~df.index.duplicated(keep='first')]
+        df.sort_index(inplace=True)
 
         self.df = df    
         return self.df
@@ -73,51 +77,119 @@ class BolTrend():
         df = self.df
         # -- Initiate populate --
         df["open_long_market"] = False
+        df["sum_return_open_long_market"] = 0
         df["close_long_market"] = False
         df["open_short_market"] = False
+        df["sum_return_open_short_market"] = 0
         df["close_short_market"] = False
         
         if self.use_long:
             # -- Populate open long market --
             df.loc[
-                (df['n1_close'] < df['n1_higher_band']) 
-                & (df['close'] > df['higher_band']) 
-                & ((df['n1_higher_band'] - df['n1_lower_band']) / df['n1_lower_band'] > self.min_bol_spread)
-                & (df["close"] > df["long_ma"])
-                # & (df["RSI"] > 50)
+                ((df['close'] > df['long_ma'])
+                & (df['rsi'] > 50)
+                & (df['eng'] == 100))
                 , "open_long_market"
             ] = True
-        
-            # -- Populate close long market --
-            df.loc[
-                (df['close'] < df['ma_band'])
-                # (df['close'] < df['ma_band_+_epsi'])
-                # | ((df['macd'] < 0) & (df['macd_shift'] > 0))
-                # (df['macd'] < 0)
-                , "close_long_market"
-            ] = True
+
+            lst_buy_signal_idx = df[df["open_long_market"] == True].index.tolist()
+            print('nb open_long', len(lst_buy_signal_idx))
+            idx_time_end = df.index[-1]
+            sl_tp = True
+            cpt_sl_tp = 0
+            tp = 0
+            sl = 0
+            if sl_tp:
+                print('SL TP')
+                for idx_time in lst_buy_signal_idx:
+                    sum_return = 0
+                    iter = 0
+                    df["sum_return_open_long_market"] = 0
+                    while sum_return < 3 and sum_return > -1:
+                        idx_time_next = idx_time + timedelta(minutes=5)
+                        iter += 1
+                        if idx_time_next == idx_time_end:
+                            df.at[idx_time_next, "close_long_market"] = True
+                            print('BREAK')
+                            break
+                        try:
+                            sum_return = sum_return + df.at[idx_time_next,"return"]
+                            if sum_return >= 3 or sum_return <= -1:
+                                if sum_return >= 3:
+                                    tp += 1
+                                else:
+                                    sl += 1
+                                print('SL TP long : ', cpt_sl_tp, ' = ', round(sum_return, 2), ' min: ', iter, ' sl: ', sl, ' tp: ', tp)
+                                cpt_sl_tp += 1
+                                df.at[idx_time_next, "close_long_market"] = True
+                            idx_time = idx_time_next
+                            df.at[idx_time,"sum_return_open_long_market"] = sum_return
+                        except:
+                            print('date not in index: ', idx_time_next)
+                            idx_time = idx_time_next
+                df["sum_return_open_long_market"] = 0
+            else:
+                # -- Populate close long market --
+                df.loc[
+                    ((df['close'] < df['long_ma'])
+                    | (df['rsi'] < 30)
+                    | (df['eng'] == -100))
+                    , "close_long_market"
+                ] = True
 
         if self.use_short:
             # -- Populate open short market --
             df.loc[
-                (df['n1_close'] > df['n1_lower_band']) 
-                & (df['close'] < df['lower_band']) 
-                & ((df['n1_higher_band'] - df['n1_lower_band']) / df['n1_lower_band'] > self.min_bol_spread)
-                & (df["close"] < df["long_ma"])
-                # & (df["RSI"] < 50)
+                ((df['close'] < df['long_ma'])
+                & (df['rsi'] < 50)
+                & (df['eng'] == -100))
                 , "open_short_market"
             ] = True
-        
-            # -- Populate close short market --
-            df.loc[
-                (df['close'] > df['ma_band'])
-                # (df['close'] > df['ma_band_-_epsi'])
-                # | ((df['macd'] > 0) & (df['macd_shift'] < 0))
-                # (df['macd'] > 0)
-                , "close_short_market"
-            ] = True
-        
-        self.df = df   
+
+            lst_buy_signal_idx = df[df["open_short_market"] == True].index.tolist()
+            print('nb open_short', len(lst_buy_signal_idx))
+            idx_time_end = df.index[-1]
+            sl_tp = True
+            cpt_sl_tp = 0
+            tp = 0
+            sl = 0
+            if sl_tp:
+                print('SL TP')
+                for idx_time in lst_buy_signal_idx:
+                    sum_return = 0
+                    iter = 0
+                    df["sum_return_open_short_market"] = 0
+                    while sum_return < 1 and sum_return > -3:
+                        idx_time_next = idx_time + timedelta(minutes=5)
+                        iter += 1
+                        if idx_time_next == idx_time_end:
+                            df.at[idx_time_next, "close_short_market"] = True
+                            print('BREAK')
+                            break
+                        try:
+                            sum_return = sum_return + df.at[idx_time_next,"return"]
+                            if sum_return >= 1 or sum_return <= -3:
+                                if sum_return >= 1:
+                                    sl += 1
+                                else:
+                                    tp += 1
+                                print('SL TP short: ', cpt_sl_tp, ' = ', round(sum_return, 2), ' min: ', iter, ' sl: ', sl, ' tp: ', tp)
+                                cpt_sl_tp += 1
+                                df.at[idx_time_next, "close_short_market"] = True
+                            idx_time = idx_time_next
+                            df.at[idx_time,"sum_return_open_short_market"] = sum_return
+                        except:
+                            print('date not in index: ', idx_time_next)
+                            idx_time = idx_time_next
+                df["sum_return_open_short_market"] = 0
+            else:
+                # -- Populate close short market --
+                df.loc[
+                    (df['close'] > df['ma_band'])
+                    , "close_short_market"
+                ] = True
+
+        self.df = df
         return self.df
         
     def run_backtest(self, initial_wallet=1000, leverage=1):
@@ -159,9 +231,9 @@ class BolTrend():
             previous_day = current_day
             if current_position:
             # -- Check for closing position --
-                if current_position['side'] == "LONG":
+                if current_position['side'] == "LONG":                     
                     # -- Close LONG market --
-                    if row['close_long_market'] or self.action_sl_tp(row, current_position, leverage, wallet):  # MODIF CEDE ADD SL AND TF IN THIS TEST
+                    if row['close_long_market']:
                         close_price = row['close']
                         trade_result = ((close_price - current_position['price']) / current_position['price']) * leverage
                         wallet += wallet * trade_result
@@ -185,7 +257,7 @@ class BolTrend():
                         
                 elif current_position['side'] == "SHORT":
                     # -- Close SHORT Market --
-                    if row['close_short_market'] or self.action_sl_tp(row, current_position, leverage, wallet): # MODIF CEDE ADD SL AND TF IN THIS TEST
+                    if row['close_short_market']:
                         close_price = row['close']
                         trade_result = ((current_position['price'] - close_price) / current_position['price']) * leverage
                         wallet += wallet * trade_result
@@ -254,25 +326,7 @@ class BolTrend():
             "wallet": wallet,
             "trades": df_trades,
             "days": df_days
-        }
-
-    def action_sl_tp(self, row, position, leverage, wallet):
-        close_price = row['close']
-        if position["side"] == "LONG":
-            trade_result = ((close_price - position['price']) / position['price']) * leverage * 100
-            if trade_result <= self.SL or trade_result >= self.TP:
-                print("SL TP")
-                return True
-            else:
-                return False
-        elif position["side"] == "SHORT":
-            trade_result = ((position['price'] - close_price) / position['price']) * leverage * 100
-            if trade_result <= self.SL or trade_result >= self.TP:
-                print("SL TP")
-                return True
-            else:
-                return False
-        return False
+        }       
         
 
 

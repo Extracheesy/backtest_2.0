@@ -65,6 +65,100 @@ def basic_single_asset_backtest(trades, days):
 
     return df_trades, df_days
 
+
+def basic_single_asset_backtest_with_df(trades, days):
+    df_trades = trades.copy()
+    df_days = days.copy()
+
+    lst_results = []
+    lst_id_results = []
+
+    df_days['evolution'] = df_days['wallet'].diff()
+    df_days['daily_return'] = df_days['evolution'] / df_days['wallet'].shift(1)
+
+    df_trades['trade_result'] = df_trades["close_trade_size"] - df_trades["open_trade_size"] - df_trades["open_fee"]
+    df_trades['trade_result_pct'] = df_trades['trade_result'] / df_trades["open_trade_size"]
+    df_trades['trade_result_pct_wallet'] = df_trades['trade_result'] / (df_trades["wallet"] + df_trades["trade_result"])
+
+    df_trades['wallet_ath'] = df_trades['wallet'].cummax()
+    df_trades['drawdown'] = df_trades['wallet_ath'] - df_trades['wallet']
+    df_trades['drawdown_pct'] = df_trades['drawdown'] / df_trades['wallet_ath']
+    df_days['wallet_ath'] = df_days['wallet'].cummax()
+    df_days['drawdown'] = df_days['wallet_ath'] - df_days['wallet']
+    df_days['drawdown_pct'] = df_days['drawdown'] / df_days['wallet_ath']
+
+    good_trades = df_trades.loc[df_trades['trade_result'] > 0]
+
+    initial_wallet = df_days.iloc[0]["wallet"]
+    total_trades = len(df_trades)
+    total_good_trades = len(good_trades)
+    avg_profit = df_trades['trade_result_pct'].mean()
+    global_win_rate = total_good_trades / total_trades
+    max_trades_drawdown = df_trades['drawdown_pct'].max()
+    max_days_drawdown = df_days['drawdown_pct'].max()
+    final_wallet = df_days.iloc[-1]['wallet']
+    buy_and_hold_pct = (df_days.iloc[-1]['price'] - df_days.iloc[0]['price']) / df_days.iloc[0]['price']
+    buy_and_hold_wallet = initial_wallet + initial_wallet * buy_and_hold_pct
+    vs_hold_pct = (final_wallet - buy_and_hold_wallet) / buy_and_hold_wallet
+    vs_usd_pct = (final_wallet - initial_wallet) / initial_wallet
+    sharpe_ratio = (365 ** 0.5) * (df_days['daily_return'].mean() / df_days['daily_return'].std())
+    total_fees = df_trades['open_fee'].sum() + df_trades['close_fee'].sum()
+
+    best_trade = df_trades['trade_result_pct'].max()
+    best_trade_date1 = str(df_trades.loc[df_trades['trade_result_pct'] == best_trade].iloc[0]['open_date'])
+    best_trade_date2 = str(df_trades.loc[df_trades['trade_result_pct'] == best_trade].iloc[0]['close_date'])
+    worst_trade = df_trades['trade_result_pct'].min()
+    worst_trade_date1 = str(df_trades.loc[df_trades['trade_result_pct'] == worst_trade].iloc[0]['open_date'])
+    worst_trade_date2 = str(df_trades.loc[df_trades['trade_result_pct'] == worst_trade].iloc[0]['close_date'])
+
+    print("Period: [{}] -> [{}]".format(df_days.iloc[0]["day"], df_days.iloc[-1]["day"]))
+    print("Initial wallet: {} $".format(round(initial_wallet, 2)))
+    lst_id_results.append("initial_wallet")
+    lst_results.append(round(initial_wallet, 2))
+
+    print("\n--- General Information ---")
+    print("Final wallet: {} $".format(round(final_wallet, 2)))
+    lst_id_results.append("final_wallet")
+    lst_results.append(round(final_wallet, 2))
+    print("Performance vs US dollar: {} %".format(round(vs_usd_pct * 100, 2)))
+    lst_id_results.append("vs_usd_pct")
+    lst_results.append(round(vs_usd_pct, 2))
+    print("Sharpe Ratio: {}".format(round(sharpe_ratio, 2)))
+    lst_id_results.append("sharpe_ratio")
+    lst_results.append(round(sharpe_ratio, 2))
+    print("Worst Drawdown T|D: -{}% | -{}%".format(round(max_trades_drawdown * 100, 2),
+                                                   round(max_days_drawdown * 100, 2)))
+    lst_id_results.append("max_trades_drawdown")
+    lst_results.append(round(max_trades_drawdown, 2))
+    lst_id_results.append("max_days_drawdown")
+    lst_results.append(round(max_days_drawdown, 2))
+    print("Buy and hold performance: {} %".format(round(buy_and_hold_pct * 100, 2)))
+    lst_id_results.append("buy_and_hold_pct")
+    lst_results.append(round(buy_and_hold_pct, 2))
+    print("Performance vs buy and hold: {} %".format(round(vs_hold_pct * 100, 2)))
+    lst_id_results.append("vs_hold_pct")
+    lst_results.append(round(vs_hold_pct, 2))
+    print("Total trades on the period: {}".format(total_trades))
+    lst_id_results.append("total_trades")
+    lst_results.append(round(total_trades, 2))
+    print("Global Win rate: {} %".format(round(global_win_rate * 100, 2)))
+    lst_id_results.append("global_win_rate")
+    lst_results.append(round(global_win_rate, 2))
+    print("Average Profit: {} %".format(round(avg_profit * 100, 2)))
+    lst_id_results.append("avg_profit")
+    lst_results.append(round(avg_profit, 2))
+    print("Total fees paid {}$".format(round(total_fees, 2)))
+    lst_id_results.append("total_fees")
+    lst_results.append(round(total_fees, 2))
+
+    print("\nBest trades: +{} % the {} -> {}".format(round(best_trade * 100, 2), best_trade_date1, best_trade_date2))
+    print("Worst trades: {} % the {} -> {}".format(round(worst_trade * 100, 2), worst_trade_date1, worst_trade_date2))
+
+    df_result = pd.DataFrame(columns=lst_id_results)
+    df_result.loc[len(df_result)] = lst_results
+    return df_trades, df_days, df_result
+
+
 def basic_multi_asset_backtest(trades, days):
     df_trades = trades.copy()
     df_days = days.copy()
@@ -148,6 +242,41 @@ def plot_sharpe_evolution(df_days):
     df_days_copy['std'] = df_days_copy['daily_return'].rolling(365).std()
     df_days_copy['sharpe'] = (365**0.5)*(df_days_copy['mean']/df_days_copy['std'])
     df_days_copy['sharpe'].plot(figsize=(18, 9))
+
+def plot_df_data(df):
+    df_cp = df.copy()
+    df_plot = pd.DataFrame(index=df_cp.index)
+    df_plot["close"] = df_cp["close"]
+    df_plot["bb_lowerband"] = df_cp["bb_lowerband"]
+    df_plot["bb_lowerband_0985"] = df_cp["bb_lowerband_0985"]
+
+
+    df_plot.plot()
+
+    plt.show()
+
+    df_plot.drop(columns=['close', 'bb_lowerband', 'bb_lowerband_0985'])
+
+    df_plot["volume"] = df_cp["volume"]
+    df_plot["volume_rolling"] = df_cp["volume_rolling"]
+
+    df_plot.plot()
+
+    plt.show()
+
+    fig, ax_left = plt.subplots(figsize=(15, 20), nrows=2, ncols=1)
+
+    ax_left[0].title.set_text("close vs bb_lowerband vs bb_lowerband_0985")
+    ax_left[0].plot(df_plot['close'], color='royalblue', lw=1)
+    ax_left[0].plot(df_plot['bb_lowerband'], color='red', lw=1)
+    ax_left[0].plot(df_plot['bb_lowerband_0985'], color='green', lw=1)
+
+
+    ax_left[1].title.set_text("volume vs volume_rolling")
+    ax_left[1].plot(df_plot['volume'], color='royalblue', lw=1)
+    ax_left[1].plot(df_plot['volume_rolling'], color='red', lw=1)
+
+    plt.show()
 
 def plot_wallet_vs_asset(df_days, log=False):
     days = df_days.copy()

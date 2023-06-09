@@ -12,10 +12,9 @@ pd.options.mode.chained_assignment = None  # default='warn'
 
 import matplotlib.pyplot as plt
 import ta
-from ta.trend import macd
 
 
-class BolTrend():
+class MeanBolTrend():
     def __init__(
         self,
         df,
@@ -52,19 +51,11 @@ class BolTrend():
         df["higher_band"] = bol_band.bollinger_hband()
         df["ma_band"] = bol_band.bollinger_mavg()
 
-        epsi = 0.1
-        df["ma_band_+_epsi"] = df["ma_band"] + df["ma_band"] * epsi / 100
-        df["ma_band_-_epsi"] = df["ma_band"] - df["ma_band"] * epsi / 100
-
         df['long_ma'] = ta.trend.sma_indicator(close=df['close'], window=self.long_ma_window)
 
         df = get_n_columns(df, ["ma_band", "lower_band", "higher_band", "close"], 1)
 
         df['RSI'] = ta.momentum.rsi(close=df['close'], window=14, fillna=True)
-
-        # df['macd'] = ta.trend.MACD(close=df['close'])
-        df['macd'] = macd(close=df['close'], window_slow=26, window_fast=12)
-        df['macd_shift'] = df['macd'].shift(1)
 
         self.df = df    
         return self.df
@@ -80,40 +71,34 @@ class BolTrend():
         if self.use_long:
             # -- Populate open long market --
             df.loc[
-                (df['n1_close'] < df['n1_higher_band']) 
-                & (df['close'] > df['higher_band']) 
+                (df['n1_close'] > df['n1_lower_band'])
+                & (df['close'] < df['lower_band'])
                 & ((df['n1_higher_band'] - df['n1_lower_band']) / df['n1_lower_band'] > self.min_bol_spread)
-                & (df["close"] > df["long_ma"])
-                # & (df["RSI"] > 50)
+                # & (df["close"] > df["long_ma"])
+                & (df["RSI"] < 30)
                 , "open_long_market"
             ] = True
         
             # -- Populate close long market --
             df.loc[
-                (df['close'] < df['ma_band'])
-                # (df['close'] < df['ma_band_+_epsi'])
-                # | ((df['macd'] < 0) & (df['macd_shift'] > 0))
-                # (df['macd'] < 0)
+                (df['close'] > df['ma_band'])
                 , "close_long_market"
             ] = True
 
         if self.use_short:
             # -- Populate open short market --
             df.loc[
-                (df['n1_close'] > df['n1_lower_band']) 
-                & (df['close'] < df['lower_band']) 
+                (df['n1_close'] < df['n1_higher_band'])
+                & (df['close'] > df['higher_band'])
                 & ((df['n1_higher_band'] - df['n1_lower_band']) / df['n1_lower_band'] > self.min_bol_spread)
-                & (df["close"] < df["long_ma"])
-                # & (df["RSI"] < 50)
+                # & (df["close"] < df["long_ma"])
+                & (df["RSI"] > 70)
                 , "open_short_market"
             ] = True
         
             # -- Populate close short market --
             df.loc[
-                (df['close'] > df['ma_band'])
-                # (df['close'] > df['ma_band_-_epsi'])
-                # | ((df['macd'] > 0) & (df['macd_shift'] < 0))
-                # (df['macd'] > 0)
+                (df['close'] < df['ma_band'])
                 , "close_short_market"
             ] = True
         
