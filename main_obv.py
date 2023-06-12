@@ -13,6 +13,7 @@ from src.rsi_bb_sma import RSI_BB_SMA
 from src.bol_trend_live import BolTrendLive
 from src.hull_suite import HullSuite
 from src.envelope import Envelope
+from src.obv import Obv
 from src.cluc_may import ClucMay
 from src.scalping_engulfing import ScalpingEngulfing
 from src.analyse_pair import AnalysePair
@@ -56,7 +57,8 @@ if __name__ == '__main__':
                   # 'LOOKS',
                   'KLAY', 'FLM', 'OMG', 'RLC', 'CKB', 'ID',
      'LIT', 'JOE', 'TLM', 'HOT', 'BLZ', 'CHR', 'RDNT', 'ICX', 'HFT', 'ONT', 'ZEC', 'UNFI', 'NKN', 'ARPA', 'DAR', 'SFP',
-     'CTSI', 'SKL', 'RVN', 'CELR', 'FLOKI', 'SPELL', 'SUI', 'EDU', 'PEPE',
+     'CTSI', 'SKL', 'RVN', 'CELR', 'FLOKI', 'SPELL', 'SUI', 'EDU',
+                  # 'PEPE', no trade
                   # 'METAHOT',
                   'IOTX', 'CTK', 'STMX', 'UMA',
      # 'BSV',
@@ -67,7 +69,7 @@ if __name__ == '__main__':
                   # 'ORDI',
                   'KEY', 'IDEX', 'SLP']
 
-    # lst_symbol = ['BTC','ETH']
+    # lst_symbol = ['BTC']
     # lst_symbol = ['XTZ', 'SUSHI']
 
     lst_pair = []
@@ -83,22 +85,13 @@ if __name__ == '__main__':
         except:
             print("download failure")
 
-    for offset in [2,3,4,5,6,7]:
-        analyser = AnalysePair(
-            envelope_window = 5,
-            envelope_offset = offset
+    for pair in lst_pair:
+        df = get_historical_from_db(
+            ccxt.binance(),
+            pair,
+            tf,
+            path="./database/"
         )
-        for pair in lst_pair:
-            df = get_historical_from_db(
-                ccxt.binance(),
-                pair,
-                tf,
-                path="./database/"
-            )
-
-            analyser.volatility_analyse_envelope_crossing(df, pair)
-
-        analyser.store_results()
 
     list_files = glob.glob('envelope_*_analyse_volatility_results.csv')
 
@@ -121,7 +114,7 @@ if __name__ == '__main__':
         df_results.to_csv("envelope_final_results_2.csv")
 
     df_final_results = pd.DataFrame()
-    for offset in [2,3,4,5]:
+    for offset in [2]:
     # for offset in [3]:
         for pair in lst_pair:
             df = get_historical_from_db(
@@ -131,18 +124,17 @@ if __name__ == '__main__':
                 path="./database/"
             )
 
-            strat = Envelope(
+            strat = Obv(
                 # df=df.loc["2018":],
                 # df=df,
                 # df=df.loc["2021":],
                 # df=df.loc["2022":],
                 df=df.loc["2023":],
                 # type=["short"],
-                # type=["long"],
-                type=["long", "short"],
-                envelope_offset=offset,
-                envelope_window=5,
-                SL=0,
+                type=["long"],
+                # type=["long", "short"],
+                ema_window=200,
+                SL=-10,
                 TP=0
             )
 
@@ -164,6 +156,16 @@ if __name__ == '__main__':
         df_final_results.to_csv("envelope_final_global_results.csv")
     except:
         df_final_results.to_csv("envelope_final_global_results_2.csv")
+
+    print("sum profit: ", df_final_results["final_wallet"].sum())
+    print("average profit: ", df_final_results["final_wallet"].mean())
+    print("max profit: ", df_final_results["final_wallet"].max())
+    print("min profit: ", df_final_results["final_wallet"].min())
+    print("nb > 1000 profit: ", (df_final_results['final_wallet'] >= 1000).sum())
+    print("total_trades mean: ", df_final_results['total_trades'].mean())
+    print("global_win_rate mean: ", df_final_results['global_win_rate'].mean())
+
+
 
     while(True):
         print("toto")
