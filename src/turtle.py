@@ -12,34 +12,20 @@ pd.options.mode.chained_assignment = None  # default='warn'
 
 import matplotlib.pyplot as plt
 import ta
+from ta.trend import macd
 
 
-class MeanBolTrend():
+class Turtle():
     def __init__(
         self,
         df,
         type=["long"],
-
-        bol_window=100,
-        bol_std=2.25,
-        min_bol_spread=0,
-        long_ma_window=500,
-
-        stochOverBought=0.8,
-        stochOverSold=0.2,
-        willOverSold=-80,
-        willOverBought=-25,
-
         SL = 0,
         TP = 0
     ):
         self.df = df
         self.use_long = True if "long" in type else False
         self.use_short = True if "short" in type else False
-        self.bol_window = bol_window
-        self.bol_std = bol_std
-        self.min_bol_spread = min_bol_spread
-        self.long_ma_window = long_ma_window
         self.SL = SL
         self.TP = TP
         if self.SL == 0:
@@ -49,22 +35,25 @@ class MeanBolTrend():
         
     def populate_indicators(self):
         # -- Clear dataset --
-        df = self.df
-        df.drop(columns=df.columns.difference(['open','high','low','close','volume']), inplace=True)
-        
+        data = self.df
+        data.drop(columns=data.columns.difference(['open','high','low','close','volume']), inplace=True)
+
         # -- Populate indicators --
-        bol_band = ta.volatility.BollingerBands(close=df["close"], window=self.bol_window, window_dev=self.bol_std)
-        df["lower_band"] = bol_band.bollinger_lband()
-        df["higher_band"] = bol_band.bollinger_hband()
-        df["ma_band"] = bol_band.bollinger_mavg()
+        # Calculate SMA20 and SMA55
+        data['SMA20'] = ta.trend.sma_indicator(data['close'], window=20)
+        data['SMA55'] = ta.trend.sma_indicator(data['close'], window=55)
 
-        df['long_ma'] = ta.trend.sma_indicator(close=df['close'], window=self.long_ma_window)
+        # Calculate Donchian Channel
+        data['UpperChannel'] = data['high'].rolling(window=20).max()
+        data['LowerChannel'] = data['low'].rolling(window=20).min()
 
-        df = get_n_columns(df, ["ma_band", "lower_band", "higher_band", "close"], 1)
+        # Calculate stop loss and take profit levels
+        data['StopLossLong'] = data['LowerChannel'].rolling(window=2).min().shift()
+        data['StopLossShort'] = data['UpperChannel'].rolling(window=2).max().shift()
+        data['TakeProfitLong'] = data['UpperChannel'].rolling(window=10).max().shift()
+        data['TakeProfitShort'] = data['LowerChannel'].rolling(window=10).min().shift()
 
-        df['RSI'] = ta.momentum.rsi(close=df['close'], window=14, fillna=True)
-
-        self.df = df    
+        self.df = data
         return self.df
     
     def populate_buy_sell(self): 
@@ -78,34 +67,31 @@ class MeanBolTrend():
         if self.use_long:
             # -- Populate open long market --
             df.loc[
-                (df['n1_close'] > df['n1_lower_band'])
-                & (df['close'] < df['lower_band'])
-                & ((df['n1_higher_band'] - df['n1_lower_band']) / df['n1_lower_band'] > self.min_bol_spread)
-                # & (df["close"] > df["long_ma"])
-                & (df["RSI"] < 30)
+                # Generate entry signals for long positions
+                (df['close'] > df['UpperChannel'].shift(1))
+                & (df['SMA20'] > df['SMA55'])
                 , "open_long_market"
             ] = True
         
             # -- Populate close long market --
             df.loc[
-                (df['close'] > df['ma_band'])
+                (df['close'] < df['LowerChannel'].rolling(window=10).min())
+                | (df['close'] <= df['StopLossLong'])
                 , "close_long_market"
             ] = True
 
         if self.use_short:
             # -- Populate open short market --
             df.loc[
-                (df['n1_close'] < df['n1_higher_band'])
-                & (df['close'] > df['higher_band'])
-                & ((df['n1_higher_band'] - df['n1_lower_band']) / df['n1_lower_band'] > self.min_bol_spread)
-                # & (df["close"] < df["long_ma"])
-                & (df["RSI"] > 70)
+                (df['close'] < df['LowerChannel'].shift(1))
+                & (df['SMA20'] < df['SMA55'])
                 , "open_short_market"
             ] = True
         
             # -- Populate close short market --
             df.loc[
-                (df['close'] < df['ma_band'])
+                (df['close'] > df['UpperChannel'].rolling(window=10).max())
+                | (df['close'] >= df['StopLossShort'])
                 , "close_short_market"
             ] = True
         

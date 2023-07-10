@@ -13,6 +13,8 @@ from src.bol_trend_live import BolTrendLive
 from src.hull_suite import HullSuite
 from src.cluc_may import ClucMay
 from src.obv import Obv
+from src.bigwill import BigWill
+from src.turtle import Turtle
 from src.scalping_engulfing import ScalpingEngulfing
 
 from src.cryptobot_indicators import TechnicalAnalysis
@@ -48,8 +50,8 @@ if __name__ == '__main__':
      'CTSI', 'SKL', 'RVN', 'CELR', 'FLOKI', 'SPELL', 'SUI', 'EDU', 'PEPE', 'METAHOT', 'IOTX', 'CTK', 'STMX', 'UMA',
      'BSV', '10000AIDOGE', '10000LADYS', 'TON', 'GTC', 'DENT', 'ZEN', 'PHB', 'ORDI', 'KEY', 'IDEX', 'SLP']
 
-    pair = "BTC/USDT"
-    # pair = "ETH/USDT"
+    # pair = "BTC/USDT"
+    pair = "ETH/USDT"
     tf = "1h"
     # tf = "5m"
     # tf = "1m"
@@ -84,6 +86,11 @@ if __name__ == '__main__':
     #     STRATEGY = "CLUCKMAY"
     STRATEGY = "BOLTREND"
     STRATEGY = "OBV"
+    STRATEGY = "TURTLE"
+
+    STRATEGY = "BIGWILL"
+
+
 
     # STRATEGY = "MEANBOLTREND"
     # STRATEGY = "MEANREVERSION"
@@ -111,9 +118,9 @@ if __name__ == '__main__':
     elif STRATEGY == "BOLTREND":
         strat = BolTrend(
             # df=df.loc["2018":],
-            # df=df,
+            df=df,
             # df=df.loc["2022":],
-            df=df.loc["2023":],
+            # df=df.loc["2023":],
             type=["long", "short"],
             # type=["long"],
             # type=["short"],
@@ -126,7 +133,7 @@ if __name__ == '__main__':
             min_bol_spread=0,
             long_ma_window=100,
 
-            SL = -10,
+            SL = 0,
             TP = 0
         )
     elif STRATEGY == "MEANBOLTREND":
@@ -248,6 +255,32 @@ if __name__ == '__main__':
             type=["long", "short"],
             ema_window = 200,
 
+            SL=0,
+            TP=0
+        )
+    elif STRATEGY == "TURTLE":
+        strat = Turtle(
+            # df=df.loc["2018":],
+            # df=df,
+            # df=df.loc["2021":],
+            # df=df.loc["2022":],
+            df=df.loc["2023":],
+            # type=["short"],
+            # type=["long"],
+            type=["long", "short"],
+            SL=0,
+            TP=0
+        )
+    elif STRATEGY == "BIGWILL":
+        strat = BigWill(
+            # df=df.loc["2018":],
+            # df=df,
+            # df=df.loc["2021":],
+            # df=df.loc["2022":],
+            df=df.loc["2023":],
+            # type=["short"],
+            type=["long"],
+            # type=["long", "short"],
             SL=0,
             TP=0
         )

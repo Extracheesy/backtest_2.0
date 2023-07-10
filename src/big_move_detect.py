@@ -8,6 +8,8 @@ import mplfinance as mpf
 import ta
 # import binance
 
+import os
+
 client = Client()
 
 def get_historical_ohlc_data(symbol, past_days=None, interval=None):
@@ -42,7 +44,7 @@ def get_ohlcv_values(df_ohlvc, time):
 
     return open, high, low, volume, close
 
-df_ohlvc = get_historical_ohlc_data("BTCUSDT", past_days=10)
+df_ohlvc = get_historical_ohlc_data("BTCUSDT", past_days=164)
 
 df_ohlvc["date"] = pd.to_datetime(df_ohlvc["open_date_time"])
 df_ohlvc.reset_index(inplace=True)
@@ -54,11 +56,21 @@ df_ohlvc['high'] = df_ohlvc['high'].astype(float)
 df_ohlvc['low'] = df_ohlvc['low'].astype(float)
 df_ohlvc['volume'] = df_ohlvc['volume'].astype(float)
 
+# df_ohlvc = df_ohlvc["2023-12-30":"2023-01-15"]
+# df_ohlvc = df_ohlvc[:"2023-01-15"]
+
+df_ohlvc_main = df_ohlvc.copy()
+
+
+lst_idx = df_ohlvc_main.index
+
 # df_ohlvc.to_csv("BTC_good_sample_for_big_moves.csv")
 
-df_ohlvc = pd.read_csv("BTC_good_sample_for_big_moves.csv")
-df_ohlvc["date"] = pd.to_datetime(df_ohlvc["date"])
-df_ohlvc.set_index('date', inplace=True)
+# df_ohlvc = pd.read_csv("BTC_good_sample_for_big_moves.csv")
+# df_ohlvc["date"] = pd.to_datetime(df_ohlvc["date"])
+# df_ohlvc.set_index('date', inplace=True)
+
+
 
 time = "2023-05-01 04:00:00"
 
@@ -116,7 +128,7 @@ def identify_big_drop_rise(dataframe):
     dataframe['Big_Drop'] |= (dataframe['MACD_Histogram'].shift(1) > macd_histogram_breakout) & (dataframe['MACD_Histogram'] <= macd_histogram_breakout)
     dataframe['Big_Rise'] |= (dataframe['MACD_Histogram'].shift(1) < macd_histogram_breakout) & (dataframe['MACD_Histogram'] >= macd_histogram_breakout)
 
-    sma_x = 2
+    sma_x = 1.5
     sma_window = 24
 
     dataframe['pct_change_close'] = dataframe['close'].pct_change().apply(abs)
@@ -131,13 +143,10 @@ def identify_big_drop_rise(dataframe):
     dataframe['sma_volume'] = ta.trend.sma_indicator(dataframe['volume'], window=sma_window) * sma_x
 
     dataframe['my_big_move_detector'] = (dataframe['pct_change_close'] > dataframe['sma_change_close']) \
-                                        & (dataframe['sma_delta'] > dataframe['pct_change_delta']) \
-                                        & (dataframe['pct_change_delta'] > dataframe['sma_pct_delta']) \
                                         & (dataframe['pct_change_volume'] > dataframe['sma_pct_volume']) \
                                         & (dataframe['volume'] > dataframe['sma_volume'])
-
-
-
+                                        # & (dataframe['sma_delta'] > dataframe['pct_change_delta']) \
+                                        # & (dataframe['pct_change_delta'] > dataframe['sma_pct_delta']) \
     duration = 3    # 3 hours
 
     for i in range(0, duration):
@@ -151,85 +160,116 @@ def identify_big_drop_rise(dataframe):
     return dataframe
 
 
+directory = "test_big_move/"
 
-fig, axs = plt.subplots(figsize=(15, 20), nrows=8, ncols=1)  # Create a (4, 1) subplot grid
+# Create the directory if it doesn't exist
+if not os.path.exists(directory):
+    os.makedirs(directory)
+    print(f"Directory '{directory}' created.")
+else:
+    print(f"Directory '{directory}' already exists.")
 
-# Create the mplfinance plot in the first subplot
-mpf.plot(df_ohlvc, ax=axs[0], type='candle', volume=False , axtitle='BTC' )  # Modify plot parameters as needed
-# mpf.plot(df_ohlvc, ax=axs[1], type='candle', volume=False , axtitle='BTC' )  # Modify plot parameters as needed
-# mpf.plot(df_ohlvc, ax=axs[2], type='candle', volume=False , axtitle='BTC' )  # Modify plot parameters as needed
-# mpf.plot(df_ohlvc, ax=axs[3], type='candle', volume=False , axtitle='BTC' )  # Modify plot parameters as needed
+# Delete all files in the directory if it exists
+if os.path.exists(directory):
+    file_list = os.listdir(directory)
+    for file_name in file_list:
+        file_path = os.path.join(directory, file_name)
+        os.remove(file_path)
+    print(f"All files in directory '{directory}' deleted.")
+else:
+    print(f"Directory '{directory}' doesn't exist.")
 
-df_ohlvc = identify_big_drop_rise(df_ohlvc)
+idx = 0
+len_week = 168
+week_id = 1
+while idx < len(lst_idx):
+    start_date = lst_idx[idx]
+    try:
+        end_date = lst_idx[min(idx+len_week + 24, len(lst_idx))]
+    except:
+        end_date = lst_idx[min(idx+len_week + 24, len(lst_idx) - 1)]
+    df_ohlvc = df_ohlvc_main[start_date : end_date].copy()
+    idx = idx + len_week
 
-axs[1].plot(df_ohlvc['RSI'], lw=1)
-axs[2].plot(df_ohlvc['ATR'], lw=1)
-axs[3].plot(df_ohlvc['OBV'], lw=1)
-axs[4].plot(df_ohlvc['MACD'], lw=1)
-axs[5].plot(df_ohlvc['ADX'], lw=1)
-axs[6].plot(df_ohlvc['MACD_Histogram'], lw=1)
-axs[7].plot(df_ohlvc['Stoch_RSI'], lw=1)
+    fig, axs = plt.subplots(figsize=(15, 20), nrows=8, ncols=1)  # Create a (4, 1) subplot grid
 
-plt.subplots_adjust(hspace=0.5)  # Adjust spacing between subplots if necessary
+    # Create the mplfinance plot in the first subplot
+    mpf.plot(df_ohlvc, ax=axs[0], type='candle', volume=False , axtitle='BTC' )  # Modify plot parameters as needed
+    # mpf.plot(df_ohlvc, ax=axs[1], type='candle', volume=False , axtitle='BTC' )  # Modify plot parameters as needed
+    # mpf.plot(df_ohlvc, ax=axs[2], type='candle', volume=False , axtitle='BTC' )  # Modify plot parameters as needed
+    # mpf.plot(df_ohlvc, ax=axs[3], type='candle', volume=False , axtitle='BTC' )  # Modify plot parameters as needed
 
-plt.suptitle("Subplots Example")
+    df_ohlvc = identify_big_drop_rise(df_ohlvc)
 
-plt.show()  # Display the combined plot with all subplots
+    axs[1].plot(df_ohlvc['RSI'], lw=1)
+    axs[2].plot(df_ohlvc['ATR'], lw=1)
+    axs[3].plot(df_ohlvc['OBV'], lw=1)
+    axs[4].plot(df_ohlvc['MACD'], lw=1)
+    axs[5].plot(df_ohlvc['ADX'], lw=1)
+    axs[6].plot(df_ohlvc['MACD_Histogram'], lw=1)
+    axs[7].plot(df_ohlvc['Stoch_RSI'], lw=1)
 
+    plt.subplots_adjust(hspace=0.5)  # Adjust spacing between subplots if necessary
 
+    plt.suptitle("Subplots Example")
 
-"""
-# Plotting
-fig, ax = plt.subplots(figsize=(12, 8))
-ax.bar(df_ohlvc.index, df_ohlvc['Big_Drop'].astype(int), width=0.8, color='red', alpha=0.5, label='Big Drop')
-ax.bar(df_ohlvc.index, df_ohlvc['Big_Rise'].astype(int), width=0.8, color='green', alpha=0.5, label='Big Rise')
-ax.set_xlabel('Date')
-ax.set_ylabel('Signal')
-ax.set_title('Big Drop and Big Rise Signals')
-ax.legend()
-plt.show()
-"""
+    # plt.show()  # Display the combined plot with all subplots
+    plt.savefig(directory + "plot_1_week_" + str(week_id) + ".png")
 
 
+    """
+    # Plotting
+    fig, ax = plt.subplots(figsize=(12, 8))
+    ax.bar(df_ohlvc.index, df_ohlvc['Big_Drop'].astype(int), width=0.8, color='red', alpha=0.5, label='Big Drop')
+    ax.bar(df_ohlvc.index, df_ohlvc['Big_Rise'].astype(int), width=0.8, color='green', alpha=0.5, label='Big Rise')
+    ax.set_xlabel('Date')
+    ax.set_ylabel('Signal')
+    ax.set_title('Big Drop and Big Rise Signals')
+    ax.legend()
+    plt.show()
+    """
 
-fig, axs = plt.subplots(figsize=(15, 20), nrows=8, ncols=1)  # Create a (4, 1) subplot grid
+    fig, axs = plt.subplots(figsize=(15, 20), nrows=8, ncols=1)  # Create a (4, 1) subplot grid
 
-# Create the mplfinance plot in the first subplot
-mpf.plot(df_ohlvc, ax=axs[0], type='candle', volume=False , axtitle='BTC' )  # Modify plot parameters as needed
+    # Create the mplfinance plot in the first subplot
+    mpf.plot(df_ohlvc, ax=axs[0], type='candle', volume=False , axtitle='BTC' )  # Modify plot parameters as needed
 
-df_ohlvc = df_ohlvc.reset_index()
+    df_ohlvc = df_ohlvc.reset_index()
 
-axs[1].bar(df_ohlvc.index,df_ohlvc['my_big_move_detector'], color='blue', label='close')
+    axs[1].bar(df_ohlvc.index,df_ohlvc['my_big_move_detector'], color='blue', label='close')
 
-axs[2].bar(df_ohlvc.index,df_ohlvc['pct_change_close'], color='blue', label='close')
-axs[2].plot(df_ohlvc.index,df_ohlvc['sma_change_close'], color='orange', label='sma_close')
-axs[2].set_title('close')
-axs[3].bar(df_ohlvc.index,df_ohlvc['pct_change_delta'], color='yellow', label='delta')
-axs[3].plot(df_ohlvc.index,df_ohlvc['sma_pct_delta'], color='orange', label='sma_close')
-axs[3].set_title('pct delta')
-axs[4].bar(df_ohlvc.index,df_ohlvc['pct_change_volume'], color='purple', label='volume')
-axs[4].plot(df_ohlvc.index,df_ohlvc['sma_pct_volume'], color='orange', label='sma_close')
-axs[4].set_title('pct volume')
-axs[5].bar(df_ohlvc.index,df_ohlvc['volume'], color='brown', label='volume')
-axs[5].plot(df_ohlvc.index,df_ohlvc['sma_volume'], color='orange', label='sma_close')
-axs[5].set_title('volume')
+    axs[2].bar(df_ohlvc.index,df_ohlvc['pct_change_close'], color='blue', label='close')
+    axs[2].plot(df_ohlvc.index,df_ohlvc['sma_change_close'], color='orange', label='sma_close')
+    axs[2].set_title('close')
+    axs[3].bar(df_ohlvc.index,df_ohlvc['pct_change_delta'], color='yellow', label='delta')
+    axs[3].plot(df_ohlvc.index,df_ohlvc['sma_pct_delta'], color='orange', label='sma_close')
+    axs[3].set_title('pct delta')
+    axs[4].bar(df_ohlvc.index,df_ohlvc['pct_change_volume'], color='purple', label='volume')
+    axs[4].plot(df_ohlvc.index,df_ohlvc['sma_pct_volume'], color='orange', label='sma_close')
+    axs[4].set_title('pct volume')
+    axs[5].bar(df_ohlvc.index,df_ohlvc['volume'], color='brown', label='volume')
+    axs[5].plot(df_ohlvc.index,df_ohlvc['sma_volume'], color='orange', label='sma_close')
+    axs[5].set_title('volume')
 
-axs[6].bar(df_ohlvc.index,df_ohlvc['Big_Drop'].astype(int), color='red', label='Big Drop')
-axs[6].set_title('Big Drop')
-axs[7].bar(df_ohlvc.index,df_ohlvc['Big_Rise'].astype(int), color='green', label='Big Rise')
-axs[7].set_title('Big Rise')
+    axs[6].bar(df_ohlvc.index,df_ohlvc['Big_Drop'].astype(int), color='red', label='Big Drop')
+    axs[6].set_title('Big Drop')
+    axs[7].bar(df_ohlvc.index,df_ohlvc['Big_Rise'].astype(int), color='green', label='Big Rise')
+    axs[7].set_title('Big Rise')
 
-# df_ohlvc['Big_Rise_int'] = df_ohlvc['Big_Rise'].replace({True: 1, False: 0})
-# df_ohlvc['Big_Drop_int'] = df_ohlvc['Big_Drop'].replace({True: 1, False: 0})
+    # df_ohlvc['Big_Rise_int'] = df_ohlvc['Big_Rise'].replace({True: 1, False: 0})
+    # df_ohlvc['Big_Drop_int'] = df_ohlvc['Big_Drop'].replace({True: 1, False: 0})
 
-# axs[1].bar(df_ohlvc['Big_Rise_int'], lw=1)
-# axs[2].bar(df_ohlvc['Big_Drop_int'], lw=1)
+    # axs[1].bar(df_ohlvc['Big_Rise_int'], lw=1)
+    # axs[2].bar(df_ohlvc['Big_Drop_int'], lw=1)
 
-plt.subplots_adjust(hspace=0.5)  # Adjust spacing between subplots if necessary
+    plt.subplots_adjust(hspace=0.5)  # Adjust spacing between subplots if necessary
 
-plt.suptitle("Subplots Example")
+    plt.suptitle("Subplots Example")
 
-plt.show()  # Display the combined plot with all subplot
+    # plt.show()  # Display the combined plot with all subplot
+    plt.savefig(directory + "plot_2_week_" + str(week_id) + ".png")
+
+    week_id += 1
 
 
 

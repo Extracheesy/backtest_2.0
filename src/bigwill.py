@@ -12,34 +12,36 @@ pd.options.mode.chained_assignment = None  # default='warn'
 
 import matplotlib.pyplot as plt
 import ta
+from ta.trend import macd
 
 
-class MeanBolTrend():
+class BigWill():
     def __init__(
         self,
         df,
         type=["long"],
-
-        bol_window=100,
-        bol_std=2.25,
-        min_bol_spread=0,
-        long_ma_window=500,
-
-        stochOverBought=0.8,
-        stochOverSold=0.2,
-        willOverSold=-80,
-        willOverBought=-25,
-
+        stochOverBought = 0.8,
+        stochOverSold = 0.2,
+        willOverSold = -85,
+        willOverBought = -10,
         SL = 0,
         TP = 0
     ):
         self.df = df
         self.use_long = True if "long" in type else False
         self.use_short = True if "short" in type else False
-        self.bol_window = bol_window
-        self.bol_std = bol_std
-        self.min_bol_spread = min_bol_spread
-        self.long_ma_window = long_ma_window
+        # -- Indicator variable --
+        self.aoParam1 = 6
+        self.aoParam2 = 22
+        self.stochWindow = 14
+        self.willWindow = 14
+
+        # -- Hyper parameters --
+        self.stochOverBought = stochOverBought
+        self.stochOverSold = stochOverSold
+        self.willOverSold = willOverSold
+        self.willOverBought = willOverBought
+        self.TpPct = 0.15
         self.SL = SL
         self.TP = TP
         if self.SL == 0:
@@ -53,16 +55,14 @@ class MeanBolTrend():
         df.drop(columns=df.columns.difference(['open','high','low','close','volume']), inplace=True)
         
         # -- Populate indicators --
-        bol_band = ta.volatility.BollingerBands(close=df["close"], window=self.bol_window, window_dev=self.bol_std)
-        df["lower_band"] = bol_band.bollinger_lband()
-        df["higher_band"] = bol_band.bollinger_hband()
-        df["ma_band"] = bol_band.bollinger_mavg()
 
-        df['long_ma'] = ta.trend.sma_indicator(close=df['close'], window=self.long_ma_window)
-
-        df = get_n_columns(df, ["ma_band", "lower_band", "higher_band", "close"], 1)
-
-        df['RSI'] = ta.momentum.rsi(close=df['close'], window=14, fillna=True)
+        # -- Indicators, you can edit every value --
+        df['AO'] = ta.momentum.awesome_oscillator(df['high'], df['low'], window1=self.aoParam1, window2=self.aoParam2)
+        df['previousRow_AO'] = df['AO'].shift(1)
+        df['STOCH_RSI'] = ta.momentum.stochrsi(close=df['close'], window=self.stochWindow)
+        df['WillR'] = ta.momentum.williams_r(high=df['high'], low=df['low'], close=df['close'], lbp=self.willWindow)
+        df['EMA100'] = ta.trend.ema_indicator(close=df['close'], window=100)
+        df['EMA200'] = ta.trend.ema_indicator(close=df['close'], window=200)
 
         self.df = df    
         return self.df
@@ -78,40 +78,72 @@ class MeanBolTrend():
         if self.use_long:
             # -- Populate open long market --
             df.loc[
-                (df['n1_close'] > df['n1_lower_band'])
-                & (df['close'] < df['lower_band'])
-                & ((df['n1_higher_band'] - df['n1_lower_band']) / df['n1_lower_band'] > self.min_bol_spread)
-                # & (df["close"] > df["long_ma"])
-                & (df["RSI"] < 30)
+                (df['AO'] >= 0)
+                & (df['previousRow_AO'] > df['AO'])
+                & (df['WillR'] < self.willOverSold)
+                & (df['EMA100'] > df['EMA200'])
                 , "open_long_market"
             ] = True
         
             # -- Populate close long market --
             df.loc[
-                (df['close'] > df['ma_band'])
+                ((df['AO'] < 0)
+                 & (df['STOCH_RSI'] > self.stochOverSold))
+                | (df['WillR'] > self.willOverBought)
                 , "close_long_market"
             ] = True
 
         if self.use_short:
             # -- Populate open short market --
             df.loc[
-                (df['n1_close'] < df['n1_higher_band'])
-                & (df['close'] > df['higher_band'])
-                & ((df['n1_higher_band'] - df['n1_lower_band']) / df['n1_lower_band'] > self.min_bol_spread)
-                # & (df["close"] < df["long_ma"])
-                & (df["RSI"] > 70)
+                (df['AO'] <= 0)
+                & (df['previousRow_AO'] < df['AO'])
+                & (df['WillR'] > self.willOverBought)
+                & (df['EMA100'] < df['EMA200'])
                 , "open_short_market"
             ] = True
         
             # -- Populate close short market --
             df.loc[
-                (df['close'] < df['ma_band'])
+                ((df['AO'] > 0)
+                 & (df['STOCH_RSI'] < self.stochOverBought))
+                | (df['WillR'] < self.willOverSold)
                 , "close_short_market"
             ] = True
         
-        self.df = df   
+        self.df = df
+        self.df_engaged = pd.DataFrame(index=self.df.index)
         return self.df
-        
+
+    def fill_df_open_close(self, df, pair):
+        status = "FREE"
+        for idx in df.index:
+            if df.at[idx, pair] == 'CLOSE':
+                df.at[idx, pair] = True
+                status = 'FREE'
+            elif df.at[idx, pair] == 'OPEN' \
+                    or status == "ENGAGED":
+                df.at[idx, pair] = True
+                status = "ENGAGED"
+        return df
+
+
+    def get_df_engaged(self, pair, bt_result_in):
+        bt_result = bt_result_in.copy()
+        self.df_engaged[pair] = False
+        lst_open = bt_result['trades']['open_date'].to_list()
+        lst_close = bt_result['trades']['close_date'].to_list()
+
+        lst_open_val = ["OPEN"] * len(lst_open)
+        self.df_engaged.loc[lst_open, pair] = lst_open_val
+
+        lst_close_val = ["CLOSE"] * len(lst_open)
+        self.df_engaged.loc[lst_close, pair] = lst_close_val
+        self.df_engaged = self.fill_df_open_close(self.df_engaged, pair)
+
+        return self.df_engaged
+
+
     def run_backtest(self, initial_wallet=1000, leverage=1):
         df = self.df[:]
         wallet = initial_wallet

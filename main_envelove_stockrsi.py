@@ -13,6 +13,7 @@ from src.rsi_bb_sma import RSI_BB_SMA
 from src.bol_trend_live import BolTrendLive
 from src.hull_suite import HullSuite
 from src.envelope import Envelope
+from src.bigwill import BigWill
 from src.cluc_may import ClucMay
 from src.scalping_engulfing import ScalpingEngulfing
 from src.analyse_pair import AnalysePair
@@ -26,7 +27,17 @@ import os
 import glob
 import asyncio
 
+import matplotlib.pyplot as plt
+
 from src.crypto_data import ExchangeDataManager
+
+def replace_in_list(original_list, string_to_replace, replacement_string):
+    modified_list = []
+    for item in original_list:
+        modified_item = item.replace(string_to_replace, replacement_string)
+        modified_list.append(modified_item)
+    return modified_list
+
 
 def print_hi(name):
     # Use a breakpoint in the code line below to debug your script.
@@ -35,6 +46,22 @@ def print_hi(name):
 
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
+
+    if False:
+        dt_tmp_test = pd.read_csv('nb_engaged.csv')
+
+        dt_tmp_test['X'] = dt_tmp_test.index
+
+        # Plot the 'Count' column as a bar chart
+        dt_tmp_test.plot(x='X', y='nb_engaged', kind='bar')
+
+        # Set labels and title
+        plt.xlabel('nb symbol engaged with bigwill')
+        plt.ylabel('Count')
+        plt.title('Big Will')
+
+        # Display the plot
+        plt.show()
 
     lst_symbol = [
         'BTC', 'ETH', 'XRP', 'EOS', 'BCH', 'LTC', 'ADA', 'ETC', 'LINK', 'TRX', 'DOT', 'DOGE', 'SOL', 'MATIC', 'BNB', 'UNI',
@@ -51,7 +78,8 @@ if __name__ == '__main__':
                   # 'GFT',
                   'ACH', 'FET', 'FXS', 'RNDR', 'HOOK', 'BNX', 'SSV',
                   # 'BGHOT10',
-                  'LQTY', 'STX', 'TRU',
+                  'LQTY', 'STX',
+        # 'TRU',
      'DUSK', 'HBAR', 'INJ', 'BEL', 'COTI', 'VET', 'ARB', 'TOMO',
                   # 'LOOKS',
                   'KLAY', 'FLM', 'OMG', 'RLC', 'CKB', 'ID',
@@ -83,7 +111,7 @@ if __name__ == '__main__':
         except:
             print("download failure")
 
-    for offset in [2,3,4,5,6,7]:
+    for offset in [2, 3, 4, 5, 6]:
         analyser = AnalysePair(
             envelope_window = 5,
             envelope_offset = offset
@@ -120,56 +148,158 @@ if __name__ == '__main__':
     except:
         df_results.to_csv("envelope_final_results_2.csv")
 
+    df_global_engaged = pd.DataFrame()
+
+    # lst_stop_loss = [0, -2, -5, -7, -10]
+    lst_stop_loss = [0]
+    lst_offset = [2, 3, 4, 5, 6]
+    lst_stochOverBought = [0.8, 0.85, 0.9, 0.95]
+    lst_stochOverSold = [0.05, 0.1, 0.15, 0.2]
+    # lst_willOverSold = [-80, -85, -90, -95]
+    # lst_willOverBought = [-20, -15, -10, -5]
+
     df_final_results = pd.DataFrame()
-    for offset in [2,3,4,5]:
-    # for offset in [3]:
-        for pair in lst_pair:
-            df = get_historical_from_db(
-                ccxt.binance(),
-                pair,
-                tf,
-                path="./database/"
-            )
+    for sl in lst_stop_loss:
+        for stochOverBought in lst_stochOverBought:
+            for stochOverSold in lst_stochOverSold:
+                for offset in lst_offset:
+                # for willOverSold in lst_willOverSold:
+                #    for willOverBought in lst_willOverBought:
+                    for pair in lst_pair:
+                        df = get_historical_from_db(
+                            ccxt.binance(),
+                            pair,
+                            tf,
+                            path="./database/"
+                        )
 
-            strat = Envelope(
-                # df=df.loc["2018":],
-                # df=df,
-                # df=df.loc["2021":],
-                # df=df.loc["2022":],
-                df=df.loc["2023":],
-                # type=["short"],
-                # type=["long"],
-                type=["long", "short"],
-                envelope_offset=offset,
-                envelope_window=5,
-                SL=0,
-                TP=0
-            )
+                        strat = Envelope(
+                            # df=df.loc["2018":],
+                            # df=df,
+                            # df=df.loc["2021":],
+                            # df=df.loc["2022":],
+                            df=df.loc["2023":],
+                            # type=["short"],
+                            # type=["long"],
+                            type=["long", "short"],
+                            envelope_offset=offset,
+                            envelope_window=5,
+                            stochOverBought=stochOverBought,
+                            stochOverSold=stochOverSold,
+                            SL=sl,
+                            TP=0
+                        )
 
-            strat.populate_indicators()
-            strat.populate_buy_sell()
-            # strat.populate_sltp()
-            bt_result = strat.run_backtest(initial_wallet=1000, leverage=5)
-            print("pair: ", pair, " offset: ", offset)
-            if bt_result != None:
-                df_trades, df_days , df_tmp = basic_single_asset_backtest_with_df(trades=bt_result['trades'], days=bt_result['days'])
-            else:
-                lst_columns = ["initial_wallet", "final_wallet", "vs_usd_pct", "sharpe_ratio", "max_trades_drawdown", "max_days_drawdown", "buy_and_hold_pct", "vs_hold_pct", "total_trades", "global_win_rate", "avg_profit", "total_fees"]
-                lst_data_nul = [1000, 1000, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-                df_tmp = pd.DataFrame(columns=lst_columns)
-                df_tmp.loc[len(df_tmp)] = lst_data_nul
+                        strat.populate_indicators()
+                        strat.populate_buy_sell()
+                        # strat.populate_sltp()
+                        bt_result = strat.run_backtest(initial_wallet=1000, leverage=5)
 
-            df_tmp['pair'] = pair
-            df_tmp['offset'] = offset
+                        if bt_result != None:
+                            df_engaged = strat.get_df_engaged(pair, bt_result)
 
-            if len(df_final_results) == 0:
-                df_final_results = df_tmp.copy()
-            else:
-                df_final_results = pd.concat([df_final_results, df_tmp], ignore_index=True, sort=False)
-    try:
-        df_final_results.to_csv("envelope_final_global_results.csv")
-    except:
-        df_final_results.to_csv("envelope_final_global_results_2.csv")
+                            if len(df_global_engaged) == 0:
+                                df_global_engaged = df_engaged
+                            else:
+                                serie_tmp = df_engaged[pair].copy()
+                                df_global_engaged[pair] = df_engaged[pair]
+
+                        print("pair: ", pair, " offset: ", offset)
+                        if bt_result != None:
+                            df_trades, df_days , df_tmp = basic_single_asset_backtest_with_df(trades=bt_result['trades'], days=bt_result['days'])
+                        else:
+                            lst_columns = ["initial_wallet", "final_wallet", "vs_usd_pct", "sharpe_ratio", "max_trades_drawdown", "max_days_drawdown", "buy_and_hold_pct", "vs_hold_pct", "total_trades", "global_win_rate", "avg_profit", "total_fees"]
+                            lst_data_nul = [1000, 1000, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+                            df_tmp = pd.DataFrame(columns=lst_columns)
+                            df_tmp.loc[len(df_tmp)] = lst_data_nul
+
+                        df_tmp['pair'] = pair
+                        df_tmp['stop_loss'] = sl
+                        df_tmp["stochOverBought"] = stochOverBought
+                        df_tmp["stochOverSold"] = stochOverSold
+                        df_tmp["offset"] = offset
+                        # df_tmp["willOverSold"] = willOverSold
+                        # df_tmp["willOverBought"] = willOverBought
+
+                        if len(df_final_results) == 0:
+                            df_final_results = df_tmp.copy()
+                        else:
+                            df_final_results = pd.concat([df_final_results, df_tmp], ignore_index=True, sort=False)
+
+    df_final_results.drop(df_final_results[df_final_results['final_wallet'] <= 1500].index, inplace = True)
+    df_final_results.drop(df_final_results[df_final_results['vs_hold_pct'] <= 0.1].index, inplace = True)
+    df_final_results.drop(df_final_results[df_final_results['global_win_rate'] <= 0.6].index, inplace = True)
+
+    df_final_results.to_csv("envelope_final_global_results.csv")
+
+    lst_columns = ['stop_loss', "stochOverBought", "stochOverSold", "offset",  # "willOverSold", "willOverBought",
+                   "nb pair", 'final_wallet mean', 'final_wallet max', 'vs_hold_pct mean', 'vs_hold_pct max',
+                   'global_win_rate mean', 'global_win_rate max', 'total_trades mean', 'total_trades max']
+    df_store_final_resutls = pd.DataFrame(columns=lst_columns)
+    for sl in lst_stop_loss:
+        for stochOverBought in lst_stochOverBought:
+            for stochOverSold in lst_stochOverSold:
+                for offset in lst_offset:
+                # for willOverSold in lst_willOverSold:
+                #    for willOverBought in lst_willOverBought:
+                    lst_row = []
+                    df_tmp = df_final_results.copy()
+                    df_tmp.drop(df_tmp[df_tmp['stop_loss'] != sl].index, inplace=True)
+                    lst_row.append(sl)
+                    df_tmp.drop(df_tmp[df_tmp['stochOverBought'] != stochOverBought].index, inplace=True)
+                    lst_row.append(stochOverBought)
+                    df_tmp.drop(df_tmp[df_tmp['stochOverSold'] != stochOverSold].index, inplace=True)
+                    lst_row.append(stochOverSold)
+
+                    df_tmp.drop(df_tmp[df_tmp['offset'] != offset].index, inplace=True)
+                    lst_row.append(offset)
+
+                    # df_tmp.drop(df_tmp[df_tmp['willOverSold'] != willOverSold].index, inplace=True)
+                    # lst_row.append(willOverSold)
+                    # df_tmp.drop(df_tmp[df_tmp['willOverBought'] != willOverBought].index, inplace=True)
+                    # lst_row.append(willOverBought)
+
+                    print('===========================')
+                    print('sl: ', sl,
+                          " stochOverBought: ", stochOverBought,
+                          " stochOverSold: ", stochOverSold,
+                          " offset: ", offset,
+                          # " willOverSold: ", willOverSold,
+                          # " willOverBought: ", willOverBought
+                          )
+                    print('nb pair: ', len(df_tmp))
+                    lst_row.append(len(df_tmp))
+                    print('final_wallet mean: ', df_tmp[['final_wallet']].mean().values[0])
+                    lst_row.append(df_tmp[['final_wallet']].mean().values[0])
+                    print('final_wallet max: ', max(df_tmp['final_wallet'].to_list()))
+                    lst_row.append(max(df_tmp['final_wallet'].to_list()))
+                    print('vs_hold_pct mean: ', df_tmp[['vs_hold_pct']].mean().values[0])
+                    lst_row.append(df_tmp[['vs_hold_pct']].mean().values[0])
+                    print('vs_hold_pct max: ', max(df_tmp['vs_hold_pct'].to_list()))
+                    lst_row.append(max(df_tmp['vs_hold_pct'].to_list()))
+                    print('global_win_rate mean: ', df_tmp[['global_win_rate']].mean().values[0])
+                    lst_row.append(df_tmp[['global_win_rate']].mean().values[0])
+                    print('global_win_rate max: ', max(df_tmp['global_win_rate'].to_list()))
+                    lst_row.append(max(df_tmp['global_win_rate'].to_list()))
+                    print('total_trades mean: ', df_tmp[['total_trades']].mean().values[0])
+                    lst_row.append(df_tmp[['total_trades']].mean().values[0])
+                    print('total_trades max: ', max(df_tmp['total_trades'].to_list()))
+                    lst_row.append(max(df_tmp['total_trades'].to_list()))
+                    print('list pairs: ', replace_in_list(df_tmp["pair"].to_list(), "/USDT", ""))
+
+                    df_store_final_resutls.loc[len(df_store_final_resutls.index)] = lst_row
+
+    df_store_final_resutls.to_csv("envelope_final_global_results_filtered.csv")
+    print('**************************')
+    print('global list pairs: ', replace_in_list(list(set(df_final_results["pair"].to_list())), "/USDT", "")  )
+    print('nb pairs: ', len(list(set(df_final_results["pair"].to_list()))))
+
+    df_global_engaged['nb_engaged'] = df_global_engaged.sum(axis=1)
+    df_global_engaged.to_csv("nb_engaged.csv")
+
+
+
+
 
     while(True):
         print("toto")

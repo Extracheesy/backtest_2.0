@@ -22,7 +22,9 @@ class Envelope():
         type=["long"],
         envelope_offset = 3,
         envelope_window = 5,
-        SL = 0,
+        stochOverBought=0.8,
+        stochOverSold=0.2,
+        SL = -10,
         TP = 0
     ):
         self.df = df
@@ -30,6 +32,12 @@ class Envelope():
         self.use_short = True if "short" in type else False
         self.envelope_offset = envelope_offset
         self.envelope_window = envelope_window
+
+        self.stochOverBought = stochOverBought
+        self.stochOverSold = stochOverSold
+
+        self.stochWindow = 14
+
         self.SL = SL
         self.TP = TP
         if self.SL == 0:
@@ -47,29 +55,9 @@ class Envelope():
         df["envelope_high"] = df["ma_base"] + df["ma_base"] * self.envelope_offset / 100
         df["envelope_low"] = df["ma_base"] - df["ma_base"] * self.envelope_offset / 100
 
+        df['STOCH_RSI'] = ta.momentum.stochrsi(close=df['close'], window=self.stochWindow)
 
-        """
-        bol_band = ta.volatility.BollingerBands(close=df["close"], window=self.bol_window, window_dev=self.bol_std)
-        df["lower_band"] = bol_band.bollinger_lband()
-        df["higher_band"] = bol_band.bollinger_hband()
-        df["ma_band"] = bol_band.bollinger_mavg()
-
-        epsi = 0.1
-        df["ma_band_+_epsi"] = df["ma_band"] + df["ma_band"] * epsi / 100
-        df["ma_band_-_epsi"] = df["ma_band"] - df["ma_band"] * epsi / 100
-
-        df['long_ma'] = ta.trend.sma_indicator(close=df['close'], window=self.long_ma_window)
-
-        df = get_n_columns(df, ["ma_band", "lower_band", "higher_band", "close"], 1)
-
-        df['RSI'] = ta.momentum.rsi(close=df['close'], window=14, fillna=True)
-
-        # df['macd'] = ta.trend.MACD(close=df['close'])
-        df['macd'] = macd(close=df['close'], window_slow=26, window_fast=12)
-        df['macd_shift'] = df['macd'].shift(1)
-        """
-
-        self.df = df    
+        self.df = df
         return self.df
     
     def populate_buy_sell(self): 
@@ -83,7 +71,11 @@ class Envelope():
         if self.use_long:
             # -- Populate open long market --
             df.loc[
-                (df['low'] < df['envelope_low'])
+                (df['close'] < df['envelope_low'])
+                & (df['STOCH_RSI'] < self.stochOverSold)
+                # & (df['STOCH_RSI'] > df['STOCH_RSI'].shift(-1))
+                # & ((df['STOCH_RSI'] > self.stochOverSold)
+                #    & (df['STOCH_RSI'].shift(-1) < self.stochOverSold))
                 , "open_long_market"
             ] = True
         
@@ -96,7 +88,11 @@ class Envelope():
         if self.use_short:
             # -- Populate open short market --
             df.loc[
-                (df['high'] > df['envelope_high'])
+                (df['close'] > df['envelope_high'])
+                & (df['STOCH_RSI'] > self.stochOverBought)
+                # & (df['STOCH_RSI'] < df['STOCH_RSI'].shift(-1))
+                # & ((df['STOCH_RSI'] < self.stochOverBought)
+                #   & (df['STOCH_RSI'].shift(-1) > self.stochOverBought))
                 , "open_short_market"
             ] = True
         
@@ -106,9 +102,37 @@ class Envelope():
                 , "close_short_market"
             ] = True
         
-        self.df = df   
+        self.df = df
+        self.df_engaged = pd.DataFrame(index=self.df.index)
         return self.df
-        
+
+    def fill_df_open_close(self, df, pair):
+        status = "FREE"
+        for idx in df.index:
+            if df.at[idx, pair] == 'CLOSE':
+                df.at[idx, pair] = True
+                status = 'FREE'
+            elif df.at[idx, pair] == 'OPEN' \
+                    or status == "ENGAGED":
+                df.at[idx, pair] = True
+                status = "ENGAGED"
+        return df
+
+    def get_df_engaged(self, pair, bt_result_in):
+        bt_result = bt_result_in.copy()
+        self.df_engaged[pair] = False
+        lst_open = bt_result['trades']['open_date'].to_list()
+        lst_close = bt_result['trades']['close_date'].to_list()
+
+        lst_open_val = ["OPEN"] * len(lst_open)
+        self.df_engaged.loc[lst_open, pair] = lst_open_val
+
+        lst_close_val = ["CLOSE"] * len(lst_open)
+        self.df_engaged.loc[lst_close, pair] = lst_close_val
+        self.df_engaged = self.fill_df_open_close(self.df_engaged, pair)
+
+        return self.df_engaged
+
     def run_backtest(self, initial_wallet=1000, leverage=1):
         df = self.df[:]
         wallet = initial_wallet
@@ -121,7 +145,7 @@ class Envelope():
         current_position = None
 
         for index, row in df.iterrows():
-            
+
             # -- Add daily report --
             current_day = index.day
             if previous_day != current_day:
@@ -139,20 +163,22 @@ class Envelope():
                         temp_wallet += temp_wallet * trade_result
                         fee = temp_wallet * taker_fee
                         temp_wallet -= fee
-                    
+
                 days.append({
-                    "day":str(index.year)+"-"+str(index.month)+"-"+str(index.day),
-                    "wallet":temp_wallet,
-                    "price":row['close']
+                    "day": str(index.year) + "-" + str(index.month) + "-" + str(index.day),
+                    "wallet": temp_wallet,
+                    "price": row['close']
                 })
             previous_day = current_day
             if current_position:
-            # -- Check for closing position --
+                # -- Check for closing position --
                 if current_position['side'] == "LONG":
                     # -- Close LONG market --
-                    if row['close_long_market'] or self.action_sl_tp(row, current_position, leverage, wallet):  # MODIF CEDE ADD SL AND TF IN THIS TEST
+                    if row['close_long_market'] or self.action_sl_tp(row, current_position, leverage,
+                                                                     wallet):  # MODIF CEDE ADD SL AND TF IN THIS TEST
                         close_price = row['close']
-                        trade_result = ((close_price - current_position['price']) / current_position['price']) * leverage
+                        trade_result = ((close_price - current_position['price']) / current_position[
+                            'price']) * leverage
                         wallet += wallet * trade_result
                         fee = wallet * taker_fee
                         wallet -= fee
@@ -166,17 +192,19 @@ class Envelope():
                             "close_price": close_price,
                             "open_fee": current_position['fee'],
                             "close_fee": fee,
-                            "open_trade_size":current_position['size'],
+                            "open_trade_size": current_position['size'],
                             "close_trade_size": wallet,
                             "wallet": wallet
                         })
                         current_position = None
-                        
+
                 elif current_position['side'] == "SHORT":
                     # -- Close SHORT Market --
-                    if row['close_short_market'] or self.action_sl_tp(row, current_position, leverage, wallet): # MODIF CEDE ADD SL AND TF IN THIS TEST
+                    if row['close_short_market'] or self.action_sl_tp(row, current_position, leverage,
+                                                                      wallet):  # MODIF CEDE ADD SL AND TF IN THIS TEST
                         close_price = row['close']
-                        trade_result = ((current_position['price'] - close_price) / current_position['price']) * leverage
+                        trade_result = ((current_position['price'] - close_price) / current_position[
+                            'price']) * leverage
                         wallet += wallet * trade_result
                         fee = wallet * taker_fee
                         wallet -= fee
@@ -208,7 +236,7 @@ class Envelope():
                         "size": pos_size,
                         "date": index,
                         "price": open_price,
-                        "fee":fee,
+                        "fee": fee,
                         "reason": "Market",
                         "side": "LONG",
                     }
@@ -221,12 +249,11 @@ class Envelope():
                         "size": pos_size,
                         "date": index,
                         "price": open_price,
-                        "fee":fee,
+                        "fee": fee,
                         "reason": "Market",
                         "side": "SHORT"
                     }
-                    
-                    
+
         df_days = pd.DataFrame(days)
         df_days['day'] = pd.to_datetime(df_days['day'])
         df_days = df_days.set_index(df_days['day'])
@@ -237,8 +264,8 @@ class Envelope():
             return None
         else:
             df_trades['open_date'] = pd.to_datetime(df_trades['open_date'])
-            df_trades = df_trades.set_index(df_trades['open_date'])  
-        
+            df_trades = df_trades.set_index(df_trades['open_date'])
+
         return get_metrics(df_trades, df_days) | {
             "wallet": wallet,
             "trades": df_trades,
@@ -262,6 +289,6 @@ class Envelope():
             else:
                 return False
         return False
-        
+
 
 
