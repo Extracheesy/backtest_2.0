@@ -24,6 +24,10 @@ class BolTrend():
         bol_std = 2.25,
         min_bol_spread = 0,
         long_ma_window = 500,
+        stochOverBought = 0,
+        stochOverSold = 0,
+        willOverSold = 0,
+        willOverBought = 0,
         SL = 0,
         TP = 0
     ):
@@ -34,6 +38,7 @@ class BolTrend():
         self.bol_std = bol_std
         self.min_bol_spread = min_bol_spread
         self.long_ma_window = long_ma_window
+
         self.SL = SL
         self.TP = TP
         if self.SL == 0:

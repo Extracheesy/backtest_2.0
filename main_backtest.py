@@ -3,24 +3,24 @@
 # Press Maj+F10 to execute it or replace it with your code.
 # Press Double Shift to search everywhere for classes, files, tool windows, actions, and settings.
 import pandas as pd
+
 import conf.config
-from utilities.get_data import get_historical_from_db
-from utilities.backtesting import basic_single_asset_backtest_with_df, basic_single_asset_backtest, plot_wallet_vs_asset, get_metrics, get_n_columns, plot_sharpe_evolution, plot_bar_by_month
-from src.bol_trend import BolTrend
+
 from src.mean_reversion import MeanReversion
 from src.mean_bol_trend import MeanBolTrend
 from src.rsi_bb_sma import RSI_BB_SMA
 from src.bol_trend_live import BolTrendLive
 from src.hull_suite import HullSuite
 from src.envelope import Envelope
-from src.obv import Obv
+import src.backtest
+from src.bigwill import BigWill
 from src.cluc_may import ClucMay
 from src.scalping_engulfing import ScalpingEngulfing
 from src.analyse_pair import AnalysePair
 from src.cryptobot_indicators import TechnicalAnalysis
 
 from src.slope_is_dope import SlopeIsDope
-import ccxt
+
 import numpy as np
 
 import os
@@ -29,142 +29,120 @@ import asyncio
 
 from src.crypto_data import ExchangeDataManager
 
+
+
 def print_hi(name):
     # Use a breakpoint in the code line below to debug your script.
     print(f'Hi, {name}')  # Press Ctrl+F8 to toggle the breakpoint.
 
-
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
+    lst_symbol = src.backtest.get_lst_symbols(conf.config.symbol)
+    lst_pair = src.backtest.get_lst_pair(lst_symbol)
 
-    lst_symbol = [
-        'BTC', 'ETH', 'XRP', 'EOS', 'BCH', 'LTC', 'ADA', 'ETC', 'LINK', 'TRX', 'DOT', 'DOGE', 'SOL', 'MATIC', 'BNB', 'UNI',
-        'ICP', 'AAVE', 'FIL', 'XLM', 'ATOM',
-        'XTZ', 'SUSHI', 'AXS', 'THETA', 'AVAX', 'DASH', 'SHIB', 'MANA', 'GALA', 'SAND', 'DYDX', 'CRV', 'NEAR', 'EGLD', 'KSM',
-        'AR', 'REN', 'FTM', 'PEOPLE', 'LRC', 'NEO', 'ALICE', 'WAVES', 'ALGO',
-     'IOTA', 'YFI', 'ENJ', 'GMT', 'ZIL', 'IOST', 'APE', 'RUNE', 'KNC', 'APT', 'CHZ', 'XMR', 'ROSE', 'ZRX', 'KAVA',
-     'ENS', 'GAL', 'MTL', 'AUDIO', 'SXP', 'C98', 'OP', 'RSR', 'SNX', 'STORJ', '1INCH', 'COMP', 'IMX', 'LUNA2', 'FLOW',
-     'REEF', 'TRB', 'QTUM', 'API3', 'MASK', 'WOO', 'GRT', 'BAND', 'STG', 'LUNC', 'ONE', 'JASMY', 'FOOTBALL', 'MKR',
-     'BAT', 'MAGIC', 'ALPHA', 'LDO', 'OCEAN', 'CELO', 'BLUR', 'MINA',
-                  # 'CORE',
-                  'CFX', 'HIGH', 'ASTR', 'AGIX', 'GMX',
-     'LINA', 'ANKR',
-                  # 'GFT',
-                  'ACH', 'FET', 'FXS', 'RNDR', 'HOOK', 'BNX', 'SSV',
-                  # 'BGHOT10',
-                  'LQTY', 'STX', 'TRU',
-     'DUSK', 'HBAR', 'INJ', 'BEL', 'COTI', 'VET', 'ARB', 'TOMO',
-                  # 'LOOKS',
-                  'KLAY', 'FLM', 'OMG', 'RLC', 'CKB', 'ID',
-     'LIT', 'JOE', 'TLM', 'HOT', 'BLZ', 'CHR', 'RDNT', 'ICX', 'HFT', 'ONT', 'ZEC', 'UNFI', 'NKN', 'ARPA', 'DAR', 'SFP',
-     'CTSI', 'SKL', 'RVN', 'CELR', 'FLOKI', 'SPELL', 'SUI', 'EDU',
-                  # 'PEPE', no trade
-                  # 'METAHOT',
-                  'IOTX', 'CTK', 'STMX', 'UMA',
-     # 'BSV',
-                  # '10000AIDOGE',
-                  # '10000LADYS',
-                  # 'TON',
-                  'GTC', 'DENT', 'ZEN', 'PHB',
-                  # 'ORDI',
-                  'KEY', 'IDEX', 'SLP']
+    if conf.config.GET_DATA:
+        tf = conf.config.tf
+        start = conf.config.start
+        src.backtest.get_ohlvc(tf, start, lst_pair)
 
-    # lst_symbol = ['BTC']
-    # lst_symbol = ['XTZ', 'SUSHI']
+    if conf.config.VOLATILITY_ANALYSE:
+        src.backtest.analyse_envelope_volatility(conf.config.lst_offset, lst_pair)
 
-    lst_pair = []
-    for symbol in lst_symbol:
-        lst_pair.append(symbol + "/USDT")
+    df_global_engaged = pd.DataFrame()
 
-    tf = "1h"
-    start = "2023-01-01 00:00:00"
-    if False:
-        try:
-            exchange = ExchangeDataManager(exchange_name="binance", path_download="./database/exchanges")
-            asyncio.run(exchange.download_data(lst_pair, [tf], start_date=start))
-        except:
-            print("download failure")
+    lst_strategy = conf.config.lst_strategy
+    lst_type = conf.config.lst_type
+    lst_filter_start = conf.config.lst_filter_start
+    tf = conf.config.tf
 
-    for pair in lst_pair:
-        df = get_historical_from_db(
-            ccxt.binance(),
-            pair,
-            tf,
-            path="./database/"
-        )
+    df_final_results = src.backtest.run_main_backtest(lst_strategy, lst_pair, lst_type, tf, lst_filter_start)
 
-    list_files = glob.glob('envelope_*_analyse_volatility_results.csv')
+    df_perf = src.backtest.get_best_performer(df_final_results, conf.config.NB_TOP_PERFORMER, conf.config.lst_performer)
 
-    df_results = pd.DataFrame()
-    for file in list_files:
-        df_tmp = pd.read_csv(file)
-        if len(df_results) == 0:
-            df_results = df_tmp.copy()
-        else:
-            df_results = pd.concat([df_results, df_tmp], ignore_index=True, sort=False)
-        os.remove(file)
+    df_perf.to_csv("best_perf.csv")
 
-    try:
-        df_results.drop(["Unnamed: 0"], axis=1, inplace=True)
-    except:
-        pass
-    try:
-        df_results.to_csv("envelope_final_results.csv")
-    except:
-        df_results.to_csv("envelope_final_results_2.csv")
+    df_final_results.drop(df_final_results[df_final_results['final_wallet'] <= 1500].index, inplace = True)
+    df_final_results.drop(df_final_results[df_final_results['vs_hold_pct'] <= 0.1].index, inplace = True)
+    df_final_results.drop(df_final_results[df_final_results['global_win_rate'] <= 0.6].index, inplace = True)
 
-    df_final_results = pd.DataFrame()
-    for offset in [2]:
-    # for offset in [3]:
-        for pair in lst_pair:
-            df = get_historical_from_db(
-                ccxt.binance(),
-                pair,
-                tf,
-                path="./database/"
-            )
+    df_final_results.to_csv("bollinger_final_global_results.csv")
 
-            strat = Obv(
-                # df=df.loc["2018":],
-                # df=df,
-                # df=df.loc["2021":],
-                # df=df.loc["2022":],
-                df=df.loc["2023":],
-                # type=["short"],
-                type=["long"],
-                # type=["long", "short"],
-                ema_window=200,
-                SL=-10,
-                TP=0
-            )
+    lst_columns = ['stop_loss',
+                   "offset",
+                   "bol_window", "bol_std",
+                   "min_bol_spread", "long_ma_window",
+                   "stochOverBought", "stochOverSold", "willOverSold", "willOverBought"
+                   "nb pair", 'final_wallet mean', 'final_wallet max', 'vs_hold_pct mean', 'vs_hold_pct max',
+                   'global_win_rate mean', 'global_win_rate max', 'total_trades mean', 'total_trades max']
+    df_store_final_resutls = pd.DataFrame(columns=lst_columns)
+    for sl in lst_stop_loss:
+        for bol_window in lst_bol_window:
+            for bol_std in lst_bol_std:
+                for offset in lst_offset:
+                    for min_bol_spread in lst_min_bol_spread:
+                        for long_ma_window in lst_long_ma_window:
+                            lst_row = []
+                            df_tmp = df_final_results.copy()
+                            df_tmp.drop(df_tmp[df_tmp['stop_loss'] != sl].index, inplace=True)
+                            lst_row.append(sl)
+                            df_tmp.drop(df_tmp[df_tmp['bol_window'] != bol_window].index, inplace=True)
+                            lst_row.append(bol_window)
+                            df_tmp.drop(df_tmp[df_tmp['bol_std'] != bol_std].index, inplace=True)
+                            lst_row.append(bol_std)
 
-            strat.populate_indicators()
-            strat.populate_buy_sell()
-            # strat.populate_sltp()
-            bt_result = strat.run_backtest(initial_wallet=1000, leverage=5)
-            if conf.config.PRINT_OUT:
-                print("pair: ", pair, " offset: ", offset)
-            df_trades, df_days , df_tmp = basic_single_asset_backtest_with_df(trades=bt_result['trades'], days=bt_result['days'])
+                            df_tmp.drop(df_tmp[df_tmp['offset'] != offset].index, inplace=True)
+                            lst_row.append(offset)
 
-            df_tmp['pair'] = pair
-            df_tmp['offset'] = offset
+                            df_tmp.drop(df_tmp[df_tmp['min_bol_spread'] != min_bol_spread].index, inplace=True)
+                            lst_row.append(min_bol_spread)
+                            df_tmp.drop(df_tmp[df_tmp['long_ma_window'] != long_ma_window].index, inplace=True)
+                            lst_row.append(long_ma_window)
 
-            if len(df_final_results) == 0:
-                df_final_results = df_tmp.copy()
-            else:
-                df_final_results = pd.concat([df_final_results, df_tmp], ignore_index=True, sort=False)
-    try:
-        df_final_results.to_csv("envelope_final_global_results.csv")
-    except:
-        df_final_results.to_csv("envelope_final_global_results_2.csv")
+                            if conf.config.PRINT_OUT:
+                                print('===========================')
+                                print('sl: ', sl,
+                                      " bol_window: ", bol_window,
+                                      " bol_std: ", bol_std,
+                                      " offset: ", offset,
+                                      " min_bol_spread: ", min_bol_spread,
+                                      " long_ma_window: ", long_ma_window
+                                      )
+                                print('nb pair: ', len(df_tmp))
+                                print('final_wallet mean: ', df_tmp[['final_wallet']].mean().values[0])
+                                print('final_wallet max: ', max(df_tmp['final_wallet'].to_list()))
+                                print('vs_hold_pct mean: ', df_tmp[['vs_hold_pct']].mean().values[0])
+                                print('vs_hold_pct max: ', max(df_tmp['vs_hold_pct'].to_list()))
+                                print('global_win_rate mean: ', df_tmp[['global_win_rate']].mean().values[0])
+                                print('global_win_rate max: ', max(df_tmp['global_win_rate'].to_list()))
+                                print('total_trades mean: ', df_tmp[['total_trades']].mean().values[0])
+                                print('total_trades max: ', max(df_tmp['total_trades'].to_list()))
+                                print('list pairs: ', src.backtest.replace_in_list(df_tmp["pair"].to_list(), "/USDT", ""))
 
-    print("sum profit: ", df_final_results["final_wallet"].sum())
-    print("average profit: ", df_final_results["final_wallet"].mean())
-    print("max profit: ", df_final_results["final_wallet"].max())
-    print("min profit: ", df_final_results["final_wallet"].min())
-    print("nb > 1000 profit: ", (df_final_results['final_wallet'] >= 1000).sum())
-    print("total_trades mean: ", df_final_results['total_trades'].mean())
-    print("global_win_rate mean: ", df_final_results['global_win_rate'].mean())
+                            lst_row.append(len(df_tmp))
+                            lst_row.append(df_tmp[['final_wallet']].mean().values[0])
+                            lst_row.append(max(df_tmp['final_wallet'].to_list()))
+                            lst_row.append(df_tmp[['vs_hold_pct']].mean().values[0])
+                            lst_row.append(max(df_tmp['vs_hold_pct'].to_list()))
+                            lst_row.append(df_tmp[['global_win_rate']].mean().values[0])
+                            lst_row.append(max(df_tmp['global_win_rate'].to_list()))
+                            lst_row.append(df_tmp[['total_trades']].mean().values[0])
+                            lst_row.append(max(df_tmp['total_trades'].to_list()))
+                            df_store_final_resutls.loc[len(df_store_final_resutls.index)] = lst_row
+
+    df_store_final_resutls.to_csv("bollinger_final_global_results_filtered.csv")
+    if conf.config.PRINT_OUT:
+        print('**************************')
+        print('global list pairs: ', src.backtest.replace_in_list(list(set(df_final_results["pair"].to_list())), "/USDT", "")  )
+        print('nb pairs: ', len(list(set(df_final_results["pair"].to_list()))))
+    else:
+        print('**************************')
+        print('global list pairs: ', src.backtest.replace_in_list(list(set(df_final_results["pair"].to_list())), "/USDT", "")  )
+        print('nb pairs: ', len(list(set(df_final_results["pair"].to_list()))))
+
+    df_global_engaged['nb_engaged'] = df_global_engaged.sum(axis=1)
+    filename = "mapping_overlap_engaged.csv"
+    # df_global_engaged.to_csv(filename)
+    # plot_engaged_overlap(filename)
 
 
 
@@ -396,7 +374,6 @@ if __name__ == '__main__':
     # df_trades
 
     plot_bar_by_month(df_days=df_days)
-
 
     print_hi('PyCharm')
 

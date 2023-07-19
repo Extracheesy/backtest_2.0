@@ -3,7 +3,7 @@
 # Press Maj+F10 to execute it or replace it with your code.
 # Press Double Shift to search everywhere for classes, files, tool windows, actions, and settings.
 import pandas as pd
-
+import conf.config
 from utilities.get_data import get_historical_from_db
 from utilities.backtesting import basic_single_asset_backtest_with_df, basic_single_asset_backtest, plot_wallet_vs_asset, get_metrics, get_n_columns, plot_sharpe_evolution, plot_bar_by_month
 from src.bol_trend import BolTrend
@@ -15,6 +15,7 @@ from src.hull_suite import HullSuite
 from src.envelope import Envelope
 from src.bigwill import BigWill
 from src.bollinger_reversion import BollingerReversion
+from src.bol_trend import BolTrend
 from src.cluc_may import ClucMay
 from src.scalping_engulfing import ScalpingEngulfing
 from src.analyse_pair import AnalysePair
@@ -96,7 +97,8 @@ if __name__ == '__main__':
                   # 'ORDI',
                   'KEY', 'IDEX', 'SLP']
 
-    # lst_symbol = ['BTC','ETH']
+    lst_symbol = ['BTC','ETH']
+    # lst_symbol = ['BTC']
     # lst_symbol = ['XTZ', 'SUSHI']
 
     lst_pair = []
@@ -145,28 +147,29 @@ if __name__ == '__main__':
     except:
         pass
     try:
-        df_results.to_csv("bollinger_reversion_final_results.csv")
+        df_results.to_csv("bollinger_final_results.csv")
     except:
-        df_results.to_csv("bollinger_reversion_final_results_2.csv")
+        df_results.to_csv("bollinger_final_results_2.csv")
 
     df_global_engaged = pd.DataFrame()
 
     # lst_stop_loss = [0, -2, -5, -7, -10]
-    lst_stop_loss = [0, -10]
+    lst_stop_loss = [0]
     # lst_offset = [2, 3, 4, 5, 6]
     lst_offset = [2]
-    lst_stochOverBought = [0.7, 0.8, 0.9, 0.95]
-    lst_stochOverSold = [0.05, 0.1, 0.2, 0.3]
-    lst_willOverSold = [-70, -80, -90, -95]
-    lst_willOverBought = [-30, -20, -10, -5]
+
+    lst_bol_window = [20, 50, 100]
+    lst_bol_std = [2.0, 2.25, 2.5]
+    lst_min_bol_spread = [0]
+    lst_long_ma_window = [20, 50, 100, 200, 500]
 
     df_final_results = pd.DataFrame()
     for sl in lst_stop_loss:
-        for stochOverBought in lst_stochOverBought:
-            for stochOverSold in lst_stochOverSold:
+        for bol_window in lst_bol_window:
+            for bol_std in lst_bol_std:
                 for offset in lst_offset:
-                    for willOverSold in lst_willOverSold:
-                        for willOverBought in lst_willOverBought:
+                    for min_bol_spread in lst_min_bol_spread:
+                        for long_ma_window in lst_long_ma_window:
                             for pair in lst_pair:
                                 df = get_historical_from_db(
                                     ccxt.binance(),
@@ -175,7 +178,7 @@ if __name__ == '__main__':
                                     path="./database/"
                                 )
 
-                                strat = BollingerReversion(
+                                strat = BolTrend(
                                     # df=df.loc["2018":],
                                     # df=df,
                                     # df=df.loc["2021":],
@@ -184,15 +187,10 @@ if __name__ == '__main__':
                                     # type=["short"],
                                     # type=["long"],
                                     type=["long", "short"],
-                                    bol_window=100,
-                                    bol_std=2.25,
-                                    min_bol_spread=0,
-                                    long_ma_window=500,
-
-                                    stochOverBought=stochOverBought,
-                                    stochOverSold=stochOverSold,
-                                    willOverSold=willOverSold,
-                                    willOverBought=willOverBought,
+                                    bol_window=bol_window,
+                                    bol_std=bol_std,
+                                    min_bol_spread=min_bol_spread,
+                                    long_ma_window=long_ma_window,
 
                                     SL=sl,
                                     TP=0
@@ -213,8 +211,8 @@ if __name__ == '__main__':
                                         else:
                                             serie_tmp = df_engaged[pair].copy()
                                             df_global_engaged[pair] = df_engaged[pair]
-
-                                print("pair: ", pair, " offset: ", offset)
+                                if conf.config.PRINT_OUT:
+                                    print("pair: ", pair, " offset: ", offset)
                                 if bt_result != None:
                                     df_trades, df_days , df_tmp = basic_single_asset_backtest_with_df(trades=bt_result['trades'], days=bt_result['days'])
                                 else:
@@ -225,57 +223,62 @@ if __name__ == '__main__':
 
                                 df_tmp['pair'] = pair
                                 df_tmp['stop_loss'] = sl
-                                df_tmp["stochOverBought"] = stochOverBought
-                                df_tmp["stochOverSold"] = stochOverSold
+                                df_tmp["bol_window"] = bol_window
+                                df_tmp["bol_std"] = bol_std
+
                                 df_tmp["offset"] = offset
-                                df_tmp["willOverSold"] = willOverSold
-                                df_tmp["willOverBought"] = willOverBought
+
+                                df_tmp["min_bol_spread"] = min_bol_spread
+                                df_tmp["long_ma_window"] = long_ma_window
 
                                 if len(df_final_results) == 0:
                                     df_final_results = df_tmp.copy()
                                 else:
                                     df_final_results = pd.concat([df_final_results, df_tmp], ignore_index=True, sort=False)
 
-    df_final_results.drop(df_final_results[df_final_results['final_wallet'] <= 1500].index, inplace = True)
-    df_final_results.drop(df_final_results[df_final_results['vs_hold_pct'] <= 0.1].index, inplace = True)
-    df_final_results.drop(df_final_results[df_final_results['global_win_rate'] <= 0.6].index, inplace = True)
+    # df_final_results.drop(df_final_results[df_final_results['final_wallet'] <= 1500].index, inplace = True)
+    # df_final_results.drop(df_final_results[df_final_results['vs_hold_pct'] <= 0.1].index, inplace = True)
+    # df_final_results.drop(df_final_results[df_final_results['global_win_rate'] <= 0.6].index, inplace = True)
 
-    df_final_results.to_csv("bollinger_reversion_final_global_results.csv")
+    df_final_results.to_csv("bollinger_final_global_results.csv")
 
-    lst_columns = ['stop_loss', "stochOverBought", "stochOverSold", "offset", "willOverSold", "willOverBought",
+    lst_columns = ['stop_loss',
+                   "bol_window", "bol_std",
+                   "offset",
+                   "min_bol_spread", "long_ma_window",
                    "nb pair", 'final_wallet mean', 'final_wallet max', 'vs_hold_pct mean', 'vs_hold_pct max',
                    'global_win_rate mean', 'global_win_rate max', 'total_trades mean', 'total_trades max']
     df_store_final_resutls = pd.DataFrame(columns=lst_columns)
     for sl in lst_stop_loss:
-        for stochOverBought in lst_stochOverBought:
-            for stochOverSold in lst_stochOverSold:
+        for bol_window in lst_bol_window:
+            for bol_std in lst_bol_std:
                 for offset in lst_offset:
-                    for willOverSold in lst_willOverSold:
-                        for willOverBought in lst_willOverBought:
+                    for min_bol_spread in lst_min_bol_spread:
+                        for long_ma_window in lst_long_ma_window:
                             lst_row = []
                             df_tmp = df_final_results.copy()
                             df_tmp.drop(df_tmp[df_tmp['stop_loss'] != sl].index, inplace=True)
                             lst_row.append(sl)
-                            df_tmp.drop(df_tmp[df_tmp['stochOverBought'] != stochOverBought].index, inplace=True)
-                            lst_row.append(stochOverBought)
-                            df_tmp.drop(df_tmp[df_tmp['stochOverSold'] != stochOverSold].index, inplace=True)
-                            lst_row.append(stochOverSold)
+                            df_tmp.drop(df_tmp[df_tmp['bol_window'] != bol_window].index, inplace=True)
+                            lst_row.append(bol_window)
+                            df_tmp.drop(df_tmp[df_tmp['bol_std'] != bol_std].index, inplace=True)
+                            lst_row.append(bol_std)
 
                             df_tmp.drop(df_tmp[df_tmp['offset'] != offset].index, inplace=True)
                             lst_row.append(offset)
 
-                            df_tmp.drop(df_tmp[df_tmp['willOverSold'] != willOverSold].index, inplace=True)
-                            lst_row.append(willOverSold)
-                            df_tmp.drop(df_tmp[df_tmp['willOverBought'] != willOverBought].index, inplace=True)
-                            lst_row.append(willOverBought)
+                            df_tmp.drop(df_tmp[df_tmp['min_bol_spread'] != min_bol_spread].index, inplace=True)
+                            lst_row.append(min_bol_spread)
+                            df_tmp.drop(df_tmp[df_tmp['long_ma_window'] != long_ma_window].index, inplace=True)
+                            lst_row.append(long_ma_window)
 
                             print('===========================')
                             print('sl: ', sl,
-                                  " stochOverBought: ", stochOverBought,
-                                  " stochOverSold: ", stochOverSold,
+                                  " bol_window: ", bol_window,
+                                  " bol_std: ", bol_std,
                                   " offset: ", offset,
-                                  " willOverSold: ", willOverSold,
-                                  " willOverBought: ", willOverBought
+                                  " min_bol_spread: ", min_bol_spread,
+                                  " long_ma_window: ", long_ma_window
                                   )
                             print('nb pair: ', len(df_tmp))
                             lst_row.append(len(df_tmp))
@@ -299,7 +302,7 @@ if __name__ == '__main__':
 
                             df_store_final_resutls.loc[len(df_store_final_resutls.index)] = lst_row
 
-    df_store_final_resutls.to_csv("bollinger_reversion_final_global_results_filtered.csv")
+    df_store_final_resutls.to_csv("bollinger_final_global_results_filtered.csv")
     print('**************************')
     print('global list pairs: ', replace_in_list(list(set(df_final_results["pair"].to_list())), "/USDT", "")  )
     print('nb pairs: ', len(list(set(df_final_results["pair"].to_list()))))

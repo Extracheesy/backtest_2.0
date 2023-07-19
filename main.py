@@ -50,8 +50,8 @@ if __name__ == '__main__':
      'CTSI', 'SKL', 'RVN', 'CELR', 'FLOKI', 'SPELL', 'SUI', 'EDU', 'PEPE', 'METAHOT', 'IOTX', 'CTK', 'STMX', 'UMA',
      'BSV', '10000AIDOGE', '10000LADYS', 'TON', 'GTC', 'DENT', 'ZEN', 'PHB', 'ORDI', 'KEY', 'IDEX', 'SLP']
 
-    # pair = "BTC/USDT"
-    pair = "ETH/USDT"
+    pair = "BTC/USDT"
+    # pair = "ETH/USDT"
     tf = "1h"
     # tf = "5m"
     # tf = "1m"
@@ -90,7 +90,7 @@ if __name__ == '__main__':
 
     STRATEGY = "BIGWILL"
 
-
+    STRATEGY = "BOLTREND"
 
     # STRATEGY = "MEANBOLTREND"
     # STRATEGY = "MEANREVERSION"

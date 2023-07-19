@@ -3,6 +3,9 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import datetime
 
+import conf.config
+
+
 def basic_single_asset_backtest(trades, days):
     df_trades = trades.copy()
     df_days = days.copy()
@@ -111,48 +114,48 @@ def basic_single_asset_backtest_with_df(trades, days):
     worst_trade_date1 = str(df_trades.loc[df_trades['trade_result_pct'] == worst_trade].iloc[0]['open_date'])
     worst_trade_date2 = str(df_trades.loc[df_trades['trade_result_pct'] == worst_trade].iloc[0]['close_date'])
 
-    print("Period: [{}] -> [{}]".format(df_days.iloc[0]["day"], df_days.iloc[-1]["day"]))
-    print("Initial wallet: {} $".format(round(initial_wallet, 2)))
+    if conf.config.PRINT_OUT:
+        print("Period: [{}] -> [{}]".format(df_days.iloc[0]["day"], df_days.iloc[-1]["day"]))
+        print("Initial wallet: {} $".format(round(initial_wallet, 2)))
+        print("\n--- General Information ---")
+        print("Final wallet: {} $".format(round(final_wallet, 2)))
+        print("Performance vs US dollar: {} %".format(round(vs_usd_pct * 100, 2)))
+        print("Sharpe Ratio: {}".format(round(sharpe_ratio, 2)))
+        print("Worst Drawdown T|D: -{}% | -{}%".format(round(max_trades_drawdown * 100, 2),
+                                                       round(max_days_drawdown * 100, 2)))
+        print("Buy and hold performance: {} %".format(round(buy_and_hold_pct * 100, 2)))
+        print("Performance vs buy and hold: {} %".format(round(vs_hold_pct * 100, 2)))
+        print("Total trades on the period: {}".format(total_trades))
+        print("Global Win rate: {} %".format(round(global_win_rate * 100, 2)))
+        print("Average Profit: {} %".format(round(avg_profit * 100, 2)))
+        print("Total fees paid {}$".format(round(total_fees, 2)))
+        print("\nBest trades: +{} % the {} -> {}".format(round(best_trade * 100, 2), best_trade_date1, best_trade_date2))
+        print("Worst trades: {} % the {} -> {}".format(round(worst_trade * 100, 2), worst_trade_date1, worst_trade_date2))
+
     lst_id_results.append("initial_wallet")
     lst_results.append(round(initial_wallet, 2))
-
-    print("\n--- General Information ---")
-    print("Final wallet: {} $".format(round(final_wallet, 2)))
     lst_id_results.append("final_wallet")
     lst_results.append(round(final_wallet, 2))
-    print("Performance vs US dollar: {} %".format(round(vs_usd_pct * 100, 2)))
     lst_id_results.append("vs_usd_pct")
     lst_results.append(round(vs_usd_pct, 2))
-    print("Sharpe Ratio: {}".format(round(sharpe_ratio, 2)))
     lst_id_results.append("sharpe_ratio")
     lst_results.append(round(sharpe_ratio, 2))
-    print("Worst Drawdown T|D: -{}% | -{}%".format(round(max_trades_drawdown * 100, 2),
-                                                   round(max_days_drawdown * 100, 2)))
     lst_id_results.append("max_trades_drawdown")
     lst_results.append(round(max_trades_drawdown, 2))
     lst_id_results.append("max_days_drawdown")
     lst_results.append(round(max_days_drawdown, 2))
-    print("Buy and hold performance: {} %".format(round(buy_and_hold_pct * 100, 2)))
     lst_id_results.append("buy_and_hold_pct")
     lst_results.append(round(buy_and_hold_pct, 2))
-    print("Performance vs buy and hold: {} %".format(round(vs_hold_pct * 100, 2)))
     lst_id_results.append("vs_hold_pct")
     lst_results.append(round(vs_hold_pct, 2))
-    print("Total trades on the period: {}".format(total_trades))
     lst_id_results.append("total_trades")
     lst_results.append(round(total_trades, 2))
-    print("Global Win rate: {} %".format(round(global_win_rate * 100, 2)))
     lst_id_results.append("global_win_rate")
     lst_results.append(round(global_win_rate, 2))
-    print("Average Profit: {} %".format(round(avg_profit * 100, 2)))
     lst_id_results.append("avg_profit")
     lst_results.append(round(avg_profit, 2))
-    print("Total fees paid {}$".format(round(total_fees, 2)))
     lst_id_results.append("total_fees")
     lst_results.append(round(total_fees, 2))
-
-    print("\nBest trades: +{} % the {} -> {}".format(round(best_trade * 100, 2), best_trade_date1, best_trade_date2))
-    print("Worst trades: {} % the {} -> {}".format(round(worst_trade * 100, 2), worst_trade_date1, worst_trade_date2))
 
     df_result = pd.DataFrame(columns=lst_id_results)
     df_result.loc[len(df_result)] = lst_results
@@ -165,8 +168,7 @@ def basic_multi_asset_backtest(trades, days):
     
     df_days['evolution'] = df_days['wallet'].diff()
     df_days['daily_return'] = df_days['evolution']/df_days['wallet'].shift(1)
-    
-    
+
     df_trades = df_trades.copy()
     df_trades['trade_result'] = df_trades["close_trade_size"] - df_trades["open_trade_size"] - df_trades["open_fee"] - df_trades["close_fee"]
     df_trades['trade_result_pct'] = df_trades['trade_result']/(df_trades["open_trade_size"] + df_trades["open_fee"])

@@ -3,7 +3,7 @@
 # Press Maj+F10 to execute it or replace it with your code.
 # Press Double Shift to search everywhere for classes, files, tool windows, actions, and settings.
 import pandas as pd
-
+import conf.config
 from utilities.get_data import get_historical_from_db
 from utilities.backtesting import basic_single_asset_backtest_with_df, basic_single_asset_backtest, plot_wallet_vs_asset, get_metrics, get_n_columns, plot_sharpe_evolution, plot_bar_by_month
 from src.bol_trend import BolTrend
@@ -203,8 +203,8 @@ if __name__ == '__main__':
                             else:
                                 serie_tmp = df_engaged[pair].copy()
                                 df_global_engaged[pair] = df_engaged[pair]
-
-                        print("pair: ", pair, " offset: ", offset)
+                        if conf.config.PRINT_OUT:
+                            print("pair: ", pair, " offset: ", offset)
                         if bt_result != None:
                             df_trades, df_days , df_tmp = basic_single_asset_backtest_with_df(trades=bt_result['trades'], days=bt_result['days'])
                         else:
