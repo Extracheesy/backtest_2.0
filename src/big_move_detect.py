@@ -5,7 +5,7 @@ from binance.client import Client
 import matplotlib.pyplot as plt
 
 import mplfinance as mpf
-import ta
+import talib as ta
 # import binance
 
 import os

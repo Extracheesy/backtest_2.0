@@ -13,10 +13,7 @@ from datetime import datetime
 from datetime import timedelta
 
 import matplotlib.pyplot as plt
-import ta
-import talib
-
-import ta
+import talib as ta
 from ta.momentum import RSIIndicator
 
 

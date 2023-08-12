@@ -1,5 +1,5 @@
 import pandas as pd
-import ta
+import talib as ta
 
 
 def calculate_hma(data, window=9):

@@ -1,7 +1,7 @@
 import math
 import numpy as np
 import pandas as pd
-import ta
+import talib as ta
 import math
 import requests
 
