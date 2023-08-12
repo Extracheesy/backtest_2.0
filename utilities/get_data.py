@@ -1,5 +1,4 @@
 import pandas as pd
-import ccxt
 
 def get_historical_from_db(exchange, symbol, timeframe, path="database/"):
     symbol = symbol.replace('/','-')

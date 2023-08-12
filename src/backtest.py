@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 import multiprocessing
 import asyncio
 from utilities.get_data import get_historical_from_db
+from utilities.utils import create_directory
 from utilities.backtesting import basic_single_asset_backtest_with_df, basic_single_asset_backtest, plot_wallet_vs_asset, get_metrics, get_n_columns, plot_sharpe_evolution, plot_bar_by_month
 from src.bol_trend import BolTrend
 from src.bol_trend_no_ma import BolTrendNoMa
@@ -57,6 +58,8 @@ def analyse_envelope_volatility(lst_offset, lst_pair):
 
 def get_ohlvc(tf, start, lst_pair):
     try:
+        directory_path = "./database/exchanges"
+        create_directory(directory_path)
         exchange = ExchangeDataManager(exchange_name="binance", path_download="./database/exchanges")
         asyncio.run(exchange.download_data(lst_pair, [tf], start_date=start))
     except:

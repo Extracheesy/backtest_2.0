@@ -52,7 +52,7 @@ lst_symbol_BTC_ETH = ['BTC', 'ETH']
 lst_symbol_BTC = ['BTC']
 lst_symbol_ETH = ['ETH']
 
-GET_DATA = False
+GET_DATA = True
 VOLATILITY_ANALYSE = False
 ENGAGED_OVERLAP = False
 PRINT_OUT = False
