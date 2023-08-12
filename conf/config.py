@@ -39,14 +39,14 @@ lst_symbol_BITGET = ['BTC', 'ETH', 'XRP', 'EOS', 'BCH', 'LTC', 'ADA', 'ETC', 'LI
                      'MTL', 'AUDIO', 'SXP', 'C98', 'OP', 'RSR', 'SNX', 'STORJ', '1INCH', 'COMP', 'IMX', 'LUNA2',
                      'FLOW', 'REEF', 'TRB', 'QTUM', 'API3', 'MASK', 'WOO', 'GRT', 'BAND', 'STG', 'LUNC', 'ONE',
                      'JASMY', 'FOOTBALL', 'MKR', 'BAT', 'MAGIC', 'ALPHA', 'LDO', 'OCEAN', 'CELO', 'BLUR', 'MINA',
-                     'CORE', 'CFX', 'HIGH', 'ASTR', 'AGIX', 'GMX', 'LINA', 'ANKR', 'GFT', 'ACH', 'FET', 'FXS',
-                     'RNDR', 'HOOK', 'BNX', 'SSV', 'BGHOT10', 'USDC', 'LQTY', 'STX', 'TRU', 'DUSK', 'HBAR', 'INJ',
-                     'BEL', 'COTI', 'VET', 'ARB', 'TOMO', 'LOOKS', 'KLAY', 'FLM', 'OMG', 'RLC', 'CKB', 'ID', 'LIT',
+                     'CFX', 'HIGH', 'ASTR', 'AGIX', 'GMX', 'LINA', 'ANKR', 'ACH', 'FET', 'FXS',
+                     'RNDR', 'HOOK', 'BNX', 'SSV', 'LQTY', 'STX', 'TRU', 'DUSK', 'HBAR', 'INJ',
+                     'BEL', 'COTI', 'VET', 'ARB', 'TOMO', 'KLAY', 'FLM', 'OMG', 'RLC', 'CKB', 'ID', 'LIT',
                      'JOE', 'TLM', 'HOT', 'BLZ', 'CHR', 'RDNT', 'ICX', 'HFT', 'ONT', 'ZEC', 'UNFI', 'NKN', 'ARPA',
-                     'DAR', 'SFP', 'CTSI', 'SKL', 'RVN', 'CELR', 'FLOKI', 'SPELL', 'SUI', 'EDU', 'PEPE', 'METAHOT',
-                     'IOTX', 'CTK', 'STMX', 'UMA', 'BSV', '10000AIDOGE', '10000LADYS', 'TON', 'GTC', 'DENT', 'ZEN',
-                     'PHB', 'ORDI', 'KEY', 'IDEX', 'SLP', 'COMBO', 'AMB', 'LEVER', 'ZZZ', 'RAD', 'ANT', 'QNT', 'MAV',
-                     'MDT', 'XVG', '1000XEC']
+                     'DAR', 'SFP', 'CTSI', 'SKL', 'RVN', 'CELR', 'FLOKI', 'SPELL', 'SUI', 'EDU',
+                     'IOTX', 'CTK', 'STMX', 'UMA', 'GTC', 'DENT', 'ZEN',
+                     'PHB', 'KEY', 'IDEX', 'SLP', 'COMBO', 'AMB', 'LEVER', 'RAD', 'ANT', 'QNT', 'MAV',
+                     'MDT', 'XVG']
 
 lst_symbol_BTC_ETH = ['BTC', 'ETH']
 lst_symbol_BTC = ['BTC']
@@ -73,11 +73,13 @@ lst_min_bol_spread = [0]
 lst_long_ma_window = [20, 50, 100, 200, 500]
 """
 
-lst_bol_window = [20]
+lst_bol_window = [10, 20, 30]
 lst_bol_std = [2.0, 2.25, 2.5]
 lst_min_bol_spread = [0]
-lst_long_ma_window = [50, 100, 200]
+lst_long_ma_window = [10, 20, 50, 100]
 
+lst_rsi_high = [0, 70, 50]
+lst_rsi_low = [30, 50, 100]
 
 lst_stochOverBought = [0.6, 0.7, 0.8, 0.9]
 lst_stochOverSold = [0.1, 0.2, 0.3, 0.4]
@@ -91,6 +93,8 @@ dct_lst_param = {
     "lst_bol_std": lst_bol_std,
     "lst_min_bol_spread": lst_min_bol_spread,
     "lst_long_ma_window": lst_long_ma_window,
+    "lst_rsi_high": lst_rsi_high,
+    "lst_rsi_low": lst_rsi_low,
     "lst_stochOverBought": lst_stochOverBought,
     "lst_stochOverSold": lst_stochOverSold,
     "lst_willOverSold": lst_willOverSold,
@@ -101,14 +105,18 @@ tf = "1h"
 start = "2023-01-01 00:00:00"
 
 # symbol = "ALL"
-# symbol = "BITGET"
-symbol = "BTC_ETH"
+symbol = "BITGET"
+# symbol = "BTC_ETH"
 # symbol = "ETH"
 # symbol = "BTC"
 
 # lst_strategy = ["bollinger_reversion"]
 # lst_strategy = ["bol_trend", "bollinger_reversion"]
-lst_strategy = ["bol_trend", "big_will", "bollinger_reversion"]
+# lst_strategy = ["bol_trend", "big_will", "bollinger_reversion"]
+# lst_strategy = ["bol_trend", "big_will"]
+# lst_strategy = ["bol_trend"]
+# lst_strategy = ["bol_trend_no_ma"]
+lst_strategy = ["bol_trend", "bol_trend_no_ma"]
 
 # lst_type=["short"]
 # lst_type=["long"]
@@ -118,4 +126,10 @@ lst_type = ["long", "short"]
 # lst_filter_start = ["2022"]
 lst_filter_start = ["2023"]
 
+MULTI_PROCESS = True
+MULTI_PROCESS_STILL_ALIVE = 0
+MULTI_PROCESS_STILL_TOTAL_ITER = 0
+
+from src.activity_tracker import ActivityTracker
+TRACKER = ActivityTracker()
 

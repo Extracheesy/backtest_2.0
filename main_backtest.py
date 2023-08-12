@@ -57,15 +57,48 @@ if __name__ == '__main__':
 
     df_final_results = src.backtest.run_main_backtest(lst_strategy, lst_pair, lst_type, tf, lst_filter_start)
 
-    df_perf = src.backtest.get_best_performer(df_final_results, conf.config.NB_TOP_PERFORMER, conf.config.lst_performer)
+    # df_perf = src.backtest.get_best_performer(df_final_results, conf.config.NB_TOP_PERFORMER, conf.config.lst_performer)
+    # df_perf.to_csv("best_perf.csv")
 
-    df_perf.to_csv("best_perf.csv")
+    rows = len(df_final_results)
+    print("=> final_global_results_no_filter.csv")
+    df_final_results.to_csv("final_global_results_no_filter.csv")
+    lst_df_resullts_fileterd = []
+    df_tmp_df_final_results_final_wallet = df_final_results.copy()
+    df_tmp_df_final_results_final_wallet.drop(df_tmp_df_final_results_final_wallet[df_tmp_df_final_results_final_wallet['final_wallet'] <= 1000].index, inplace=True)
+    df_tmp_df_final_results_final_wallet.reset_index(drop=True, inplace=True)
+    df_tmp_df_final_results_final_wallet.to_csv("final_global_results_filtered_final_wallet.csv")
+    lst_df_resullts_fileterd.append(df_tmp_df_final_results_final_wallet)
 
-    df_final_results.drop(df_final_results[df_final_results['final_wallet'] <= 1500].index, inplace = True)
-    df_final_results.drop(df_final_results[df_final_results['vs_hold_pct'] <= 0.1].index, inplace = True)
-    df_final_results.drop(df_final_results[df_final_results['global_win_rate'] <= 0.6].index, inplace = True)
+    df_tmp_df_final_results_vs_hold_pct = df_final_results.copy()
+    df_tmp_df_final_results_vs_hold_pct.drop(df_tmp_df_final_results_vs_hold_pct[df_tmp_df_final_results_vs_hold_pct['vs_hold_pct'] < 0.1].index, inplace=True)
+    df_tmp_df_final_results_vs_hold_pct.reset_index(drop=True, inplace=True)
+    df_tmp_df_final_results_vs_hold_pct.to_csv("final_global_results_filtered_vs_hold_pct.csv")
+    lst_df_resullts_fileterd.append(df_tmp_df_final_results_vs_hold_pct)
 
-    df_final_results.to_csv("bollinger_final_global_results.csv")
+    df_tmp_df_final_results_sharpe_ratio = df_final_results.copy()
+    df_tmp_df_final_results_sharpe_ratio.drop(df_tmp_df_final_results_sharpe_ratio[df_tmp_df_final_results_sharpe_ratio['sharpe_ratio'] < 1.0].index, inplace=True)
+    df_tmp_df_final_results_sharpe_ratio.reset_index(drop=True, inplace=True)
+    df_tmp_df_final_results_sharpe_ratio.to_csv("final_global_results_filtered_sharpe_ratio.csv")
+    lst_df_resullts_fileterd.append(df_tmp_df_final_results_sharpe_ratio)
+
+    if False:
+        df_tmp_df_final_results_global_win_rate = df_final_results.copy()
+        df_tmp_df_final_results_global_win_rate.drop(df_tmp_df_final_results_global_win_rate[df_tmp_df_final_results_global_win_rate['global_win_rate'] < 0.5].index, inplace=True)
+        df_tmp_df_final_results_global_win_rate.reset_index(drop=True, inplace=True)
+        lst_df_resullts_fileterd.append(df_tmp_df_final_results_global_win_rate)
+
+    df_final_results_filtered = pd.concat(lst_df_resullts_fileterd,
+                                          ignore_index=True, sort=False)
+    df_final_results_filtered.reset_index(drop=True, inplace=True)
+    rows_filtered = len(df_final_results_filtered)
+    df_final_results_filtered.drop_duplicates(inplace=True)
+    duplicates_filtered = rows_filtered - len(df_final_results_filtered)
+    print("fileted rows: ", rows_filtered, " filtered dropped duplicates rows: ", duplicates_filtered, " rows")
+
+    print("rows: ", rows, " filtered  rows: ", rows - len(df_final_results_filtered))
+    print("=> final_global_results_filtered.csv")
+    df_final_results_filtered.to_csv("final_global_results_filtered.csv")
 
     lst_columns = ['stop_loss',
                    "offset",

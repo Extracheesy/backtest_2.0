@@ -1,15 +1,19 @@
 import pandas as pd
-from utilities.get_data import get_historical_from_db
 import os
 import glob
 import ccxt
 import conf.config
+import matplotlib.pyplot as plt
+import multiprocessing
+import asyncio
+from utilities.get_data import get_historical_from_db
+from utilities.backtesting import basic_single_asset_backtest_with_df, basic_single_asset_backtest, plot_wallet_vs_asset, get_metrics, get_n_columns, plot_sharpe_evolution, plot_bar_by_month
 from src.bol_trend import BolTrend
+from src.bol_trend_no_ma import BolTrendNoMa
 from src.bigwill import BigWill
 from src.bollinger_reversion import BollingerReversion
-import matplotlib.pyplot as plt
-
-from utilities.backtesting import basic_single_asset_backtest_with_df, basic_single_asset_backtest, plot_wallet_vs_asset, get_metrics, get_n_columns, plot_sharpe_evolution, plot_bar_by_month
+from src.crypto_data import ExchangeDataManager
+from src.activity_tracker import ActivityTracker
 
 def replace_in_list(original_list, string_to_replace, replacement_string):
     modified_list = []
@@ -94,10 +98,11 @@ def run_main_backtest(lst_strategy, lst_pair, lst_type, tf, lst_filter_start):
     for filter_start in lst_filter_start:
         for strategy in lst_strategy:
             df_tmp = run_strategy_backtest(strategy, df_pair, lst_type, tf, filter_start)
-            if len(df_backtest_results):
+            if len(df_backtest_results) == 0:
                 df_backtest_results = df_tmp.copy()
             else:
                 df_backtest_results = pd.concat([df_backtest_results, df_tmp], axis=0)
+                df_backtest_results.reset_index(drop=True, inplace=True)
     return df_backtest_results
 
 def plot_engaged_overlap(filename):
@@ -147,28 +152,39 @@ def run_strategy(lst_param):
     stochOverSold = lst_param[9]
     willOverSold = lst_param[10]
     willOverBought = lst_param[11]
-    pair = lst_param[12]
-    df = lst_param[13]
+    rsi_high = lst_param[12]
+    rsi_low = lst_param[13]
+    pair = lst_param[14]
+    df = lst_param[15]
 
     df_final_results = pd.DataFrame()
     if strategy == "bol_trend":
-        try:
-            strat = BolTrend(
-                df=df,
-                type=lst_type,
-                bol_window=bol_window,
-                bol_std=bol_std,
-                min_bol_spread=min_bol_spread,
-                long_ma_window=long_ma_window,
-                stochOverBought=stochOverBought,
-                stochOverSold=stochOverSold,
-                willOverSold=willOverSold,
-                willOverBought=willOverBought,
-                SL=sl,
-                TP=0
-            )
-        except:
-            print("toto")
+        strat = BolTrend(
+            df=df,
+            type=lst_type,
+            bol_window=bol_window,
+            bol_std=bol_std,
+            min_bol_spread=min_bol_spread,
+            long_ma_window=long_ma_window,
+            rsi_high=rsi_high,
+            rsi_low=rsi_low,
+            SL=sl,
+            TP=0
+        )
+    elif strategy == "bol_trend_no_ma":
+        strat = BolTrendNoMa(
+            df=df,
+            type=lst_type,
+            bol_window=bol_window,
+            bol_std=bol_std,
+            min_bol_spread=min_bol_spread,
+            stochOverBought=stochOverBought,
+            stochOverSold=stochOverSold,
+            willOverSold=willOverSold,
+            willOverBought=willOverBought,
+            SL=sl,
+            TP=0
+        )
     elif strategy == "big_will":
         strat = BigWill(
             df=df,
@@ -239,11 +255,17 @@ def run_strategy(lst_param):
     df_tmp["willOverSold"] = willOverSold
     df_tmp["willOverBought"] = willOverBought
 
+    df_tmp["rsi_high"] = rsi_high
+    df_tmp["rsi_low"] = rsi_low
+
     if len(df_final_results) == 0:
         df_final_results = df_tmp.copy()
     else:
         df_final_results = pd.concat([df_final_results, df_tmp],
                                      ignore_index=True, sort=False)
+
+    # conf.config.TRACKER.increment_tic()
+    conf.config.TRACKER.display_tracker()
 
     return df_final_results
 
@@ -260,6 +282,8 @@ def run_strategy_backtest(strategy, df_pair, lst_type, tf, filter_start):
     lst_offset = conf.config.dct_lst_param["lst_offset"]
     lst_min_bol_spread = conf.config.dct_lst_param["lst_min_bol_spread"]
     lst_long_ma_window = conf.config.dct_lst_param["lst_long_ma_window"]
+    lst_rsi_high = conf.config.dct_lst_param["lst_rsi_high"]
+    lst_rsi_low = conf.config.dct_lst_param["lst_rsi_low"]
 
     lst_stochOverBought = conf.config.dct_lst_param["lst_stochOverBought"]
     lst_stochOverSold = conf.config.dct_lst_param["lst_stochOverSold"]
@@ -272,45 +296,103 @@ def run_strategy_backtest(strategy, df_pair, lst_type, tf, filter_start):
         lst_stochOverSold = [0]
         lst_willOverSold = [0]
         lst_willOverBought = [0]
+    if strategy == "bol_trend_no_ma":
+        lst_offset = [0]
+        lst_long_ma_window = [0]
+        lst_rsi_high = [0]
+        lst_rsi_low = [0]
+        lst_stochOverBought = [0]
+        lst_stochOverSold = [0]
+        lst_willOverSold = [0]
+        lst_willOverBought = [0]
     elif strategy == "big_will":
         lst_offset = [0]
         lst_bol_window = [0]
         lst_bol_std = [0]
         lst_min_bol_spread = [0]
         lst_long_ma_window = [0]
+        lst_rsi_high = [0]
+        lst_rsi_low = [0]
     elif strategy == "bollinger_reversion":
         lst_offset = [0]
+        lst_rsi_high = [0]
+        lst_rsi_low = [0]
 
     lst_of_lst_parameters = []
+    # for lst_empty in range(0, 10, 1):
+    #    lst_of_lst_parameters.append([])
     for sl in lst_stop_loss:
-        lst_parametest = [filter_start, strategy, sl]
+        lst_param_test = [filter_start, strategy, sl]
+        lst_back_up_bol_window = lst_param_test.copy()
         for bol_window in lst_bol_window:
-            lst_parametest.append(bol_window)
+            lst_param_test = lst_back_up_bol_window.copy()
+            lst_param_test.append(bol_window)
+            lst_back_up_bol_std = lst_param_test.copy()
             for bol_std in lst_bol_std:
-                lst_parametest.append(bol_std)
+                lst_param_test = lst_back_up_bol_std.copy()
+                lst_param_test.append(bol_std)
+                lst_back_up_offset = lst_param_test.copy()
                 for offset in lst_offset:
-                    lst_parametest.append(offset)
+                    lst_param_test = lst_back_up_offset.copy()
+                    lst_param_test.append(offset)
+                    lst_back_up_min_bol_spread = lst_param_test.copy()
                     for min_bol_spread in lst_min_bol_spread:
-                        lst_parametest.append(min_bol_spread)
+                        lst_param_test = lst_back_up_min_bol_spread.copy()
+                        lst_param_test.append(min_bol_spread)
+                        lst_back_up_long_ma_window = lst_param_test.copy()
                         for long_ma_window in lst_long_ma_window:
-                            lst_parametest.append(long_ma_window)
+                            lst_param_test = lst_back_up_long_ma_window.copy()
+                            lst_param_test.append(long_ma_window)
+                            lst_back_up_stochOverBought = lst_param_test.copy()
                             for stochOverBought in lst_stochOverBought:
-                                lst_parametest.append(stochOverBought)
+                                lst_param_test = lst_back_up_stochOverBought.copy()
+                                lst_param_test.append(stochOverBought)
+                                lst_back_up_stochOverSold = lst_param_test.copy()
                                 for stochOverSold in lst_stochOverSold:
-                                    lst_parametest.append(stochOverSold)
+                                    lst_param_test = lst_back_up_stochOverSold.copy()
+                                    lst_param_test.append(stochOverSold)
+                                    lst_back_up_willOverSold = lst_param_test.copy()
                                     for willOverSold in lst_willOverSold:
-                                        lst_parametest.append(willOverSold)
+                                        lst_param_test = lst_back_up_willOverSold.copy()
+                                        lst_param_test.append(willOverSold)
+                                        lst_back_up_willOverBought = lst_param_test.copy()
                                         for willOverBought in lst_willOverBought:
-                                            lst_parametest.append(willOverBought)
-                                            for pair in lst_pair:
-                                                lst_parametest_tmp = lst_parametest
-                                                df = df_pair.at[pair, "df_pair"]
-                                                df = df.loc[filter_start:]
-                                                lst_parametest_tmp.append(pair)
-                                                lst_parametest_tmp.append(df)
-                                                lst_of_lst_parameters.append(lst_parametest_tmp)
+                                            lst_param_test = lst_back_up_willOverBought.copy()
+                                            lst_param_test.append(willOverBought)
+                                            lst_back_up_rsi_high = lst_param_test.copy()
+                                            for rsi_high in lst_rsi_high:
+                                                lst_param_test = lst_back_up_rsi_high.copy()
+                                                lst_param_test.append(rsi_high)
+                                                lst_back_up_rsi_low = lst_param_test.copy()
+                                                for rsi_low in lst_rsi_low:
+                                                    lst_param_test = lst_back_up_rsi_low.copy()
+                                                    lst_param_test.append(rsi_low)
+                                                    lst_back_up_pair = lst_param_test.copy()
+                                                    for pair in lst_pair:
+                                                        lst_param_test_tmp = lst_back_up_pair.copy()
+                                                        df = df_pair.at[pair, "df_pair"]
+                                                        df = df.loc[filter_start:]
+                                                        lst_param_test_tmp.append(pair)
+                                                        lst_param_test_tmp.append(df)
+                                                        lst_of_lst_parameters.append(lst_param_test_tmp)
 
-    lst_df_results = list(map(run_strategy, lst_of_lst_parameters))
+    if conf.config.MULTI_PROCESS:
+        conf.config.TRACKER.set_total_iteration(len(lst_of_lst_parameters))
+        conf.config.TRACKER.display_tracker()
+        # Number of worker processes
+        num_processes = multiprocessing.cpu_count()
+
+        with multiprocessing.Pool(processes=num_processes) as pool:
+            lst_df_results = pool.map(run_strategy, lst_of_lst_parameters)
+    else:
+        lst_df_results = list(map(run_strategy, lst_of_lst_parameters))
+
     df_results = pd.concat(lst_df_results, ignore_index=True, sort=False)
+
+    rows = len(df_results)
+    df_results.drop_duplicates(inplace=True)
+    duplicates = rows - len(df_results)
+    print("rows: ", rows, " dropped duplicates rows: ", duplicates, " rows")
+
     return df_results
 

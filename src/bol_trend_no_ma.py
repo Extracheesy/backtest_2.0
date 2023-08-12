@@ -15,7 +15,7 @@ import ta
 from ta.trend import macd
 
 
-class BolTrend():
+class BolTrendNoMa():
     def __init__(
         self,
         df,
@@ -23,9 +23,10 @@ class BolTrend():
         bol_window = 100,
         bol_std = 2.25,
         min_bol_spread = 0,
-        long_ma_window = 500,
-        rsi_high = 70,
-        rsi_low = 30,
+        stochOverBought = 0,
+        stochOverSold = 0,
+        willOverSold = 0,
+        willOverBought = 0,
         SL = 0,
         TP = 0
     ):
@@ -35,9 +36,6 @@ class BolTrend():
         self.bol_window = bol_window
         self.bol_std = bol_std
         self.min_bol_spread = min_bol_spread
-        self.long_ma_window = long_ma_window
-        self.rsi_high = rsi_high
-        self.rsi_low = rsi_low
 
         self.SL = SL
         self.TP = TP
@@ -64,7 +62,7 @@ class BolTrend():
         df["ma_band_+_epsi"] = df["ma_band"] + df["ma_band"] * epsi / 100
         df["ma_band_-_epsi"] = df["ma_band"] - df["ma_band"] * epsi / 100
 
-        df['long_ma'] = ta.trend.sma_indicator(close=df['close'], window=self.long_ma_window)
+        # df['long_ma'] = ta.trend.sma_indicator(close=df['close'], window=self.long_ma_window)
 
         df = get_n_columns(df, ["ma_band", "lower_band", "higher_band", "close"], 1)
 
@@ -91,8 +89,8 @@ class BolTrend():
                 (df['n1_close'] < df['n1_higher_band']) 
                 & (df['close'] > df['higher_band']) 
                 & ((df['n1_higher_band'] - df['n1_lower_band']) / df['n1_lower_band'] > self.min_bol_spread)
-                & (df["close"] > df["long_ma"])
-                & (df["RSI"] <= self.rsi_high)
+                # & (df["close"] > df["long_ma"])
+                # & (df["RSI"] > 50)
                 , "open_long_market"
             ] = True
         
@@ -111,8 +109,8 @@ class BolTrend():
                 (df['n1_close'] > df['n1_lower_band']) 
                 & (df['close'] < df['lower_band']) 
                 & ((df['n1_higher_band'] - df['n1_lower_band']) / df['n1_lower_band'] > self.min_bol_spread)
-                & (df["close"] < df["long_ma"])
-                & (df["RSI"] >= self.rsi_high)
+                # & (df["close"] < df["long_ma"])
+                # & (df["RSI"] < 50)
                 , "open_short_market"
             ] = True
         
