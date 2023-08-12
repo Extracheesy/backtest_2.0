@@ -12,9 +12,6 @@ pd.options.mode.chained_assignment = None  # default='warn'
 
 import matplotlib.pyplot as plt
 import talib as ta
-from ta.trend import macd
-from ta.volume import OnBalanceVolumeIndicator
-
 
 class Obv():
     def __init__(

@@ -14,8 +14,6 @@ from datetime import timedelta
 
 import matplotlib.pyplot as plt
 import talib as ta
-from ta.momentum import RSIIndicator
-
 
 class ScalpingEngulfing():
     def __init__(
@@ -55,7 +53,7 @@ class ScalpingEngulfing():
 
         df['long_ma'] = ta.trend.sma_indicator(close=df['close'], window=self.long_ma_window)
 
-        rsi = RSIIndicator(close=df["close"], window=self.rsi_timeperiod)
+        rsi = ta.momentum.RSIIndicator(close=df["close"], window=self.rsi_timeperiod)
         df["rsi"] = rsi.rsi()
 
         df['return'] = df['close'].pct_change()

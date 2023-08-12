@@ -12,8 +12,6 @@ pd.options.mode.chained_assignment = None  # default='warn'
 
 import matplotlib.pyplot as plt
 import talib as ta
-from ta.trend import macd
-
 
 class BolTrend():
     def __init__(
@@ -71,7 +69,7 @@ class BolTrend():
         df['RSI'] = ta.momentum.rsi(close=df['close'], window=14, fillna=True)
 
         # df['macd'] = ta.trend.MACD(close=df['close'])
-        df['macd'] = macd(close=df['close'], window_slow=26, window_fast=12)
+        df['macd'] = ta.trend.macd(close=df['close'], window_slow=26, window_fast=12)
         df['macd_shift'] = df['macd'].shift(1)
 
         self.df = df    

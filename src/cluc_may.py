@@ -15,8 +15,8 @@ pd.options.mode.chained_assignment = None  # default='warn'
 
 import matplotlib.pyplot as plt
 import talib as ta
-from ta.momentum import RSIIndicator
-from ta.trend import macd
+# from ta.momentum import RSIIndicator
+# from ta.trend import macd
 
 class ClucMay():
     def __init__(
@@ -74,7 +74,7 @@ class ClucMay():
         """
 
         # -- Populate indicators --
-        rsi = RSIIndicator(close=df["close"], window=self.rsi_timeperiod)
+        rsi = ta.momentum.RSIIndicator(close=df["close"], window=self.rsi_timeperiod)
         df["rsi"] = rsi.rsi()
         rsiframe = pd.DataFrame(df['rsi']).rename(columns={'rsi': 'close'})
         df['emarsi'] = ta.trend.sma_indicator(close=rsiframe['close'], window=self.ema_rsi_timeperiod)

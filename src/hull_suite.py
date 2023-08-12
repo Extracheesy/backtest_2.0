@@ -12,9 +12,6 @@ pd.options.mode.chained_assignment = None  # default='warn'
 
 import matplotlib.pyplot as plt
 import talib as ta
-from ta.trend import macd
-from ta.momentum import rsi
-
 
 class HullSuite():
     def __init__(
