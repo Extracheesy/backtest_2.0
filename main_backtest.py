@@ -100,6 +100,9 @@ if __name__ == '__main__':
     print("=> final_global_results_filtered.csv")
     df_final_results_filtered.to_csv("final_global_results_filtered.csv")
 
+
+    print('final')
+
     lst_columns = ['stop_loss',
                    "offset",
                    "bol_window", "bol_std",
