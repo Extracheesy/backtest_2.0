@@ -11,7 +11,9 @@ pd.options.mode.chained_assignment = None  # default='warn'
 
 
 import matplotlib.pyplot as plt
-import talib as ta
+# import talib as ta
+import ta
+# import talib as ta
 
 class BolTrend():
     def __init__(

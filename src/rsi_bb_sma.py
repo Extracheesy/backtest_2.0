@@ -11,8 +11,8 @@ pd.options.mode.chained_assignment = None  # default='warn'
 
 
 import matplotlib.pyplot as plt
-import talib as ta
-
+# import talib as ta
+import ta
 
 class RSI_BB_SMA():
     def __init__(

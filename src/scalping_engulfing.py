@@ -13,7 +13,8 @@ from datetime import datetime
 from datetime import timedelta
 
 import matplotlib.pyplot as plt
-import talib as ta
+# import talib as ta
+import ta
 
 class ScalpingEngulfing():
     def __init__(

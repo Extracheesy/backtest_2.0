@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
-import talib as ta
+# import talib as ta
+import ta
 
 class AnalysePair():
     def __init__(

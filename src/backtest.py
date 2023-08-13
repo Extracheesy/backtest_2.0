@@ -384,7 +384,7 @@ def run_strategy_backtest(strategy, df_pair, lst_type, tf, filter_start):
         conf.config.TRACKER.display_tracker()
         # Number of worker processes
         num_processes = multiprocessing.cpu_count()
-
+        print("cpu count: ", num_processes)
         with multiprocessing.Pool(processes=num_processes) as pool:
             lst_df_results = pool.map(run_strategy, lst_of_lst_parameters)
     else:
