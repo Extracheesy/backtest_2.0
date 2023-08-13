@@ -3,7 +3,7 @@
 # Press Maj+F10 to execute it or replace it with your code.
 # Press Double Shift to search everywhere for classes, files, tool windows, actions, and settings.
 import pandas as pd
-
+from datetime import datetime, timedelta
 import conf.config
 
 from src.mean_reversion import MeanReversion
@@ -39,6 +39,8 @@ def print_hi(name):
 if __name__ == '__main__':
     lst_symbol = src.backtest.get_lst_symbols(conf.config.symbol)
     lst_pair = src.backtest.get_lst_pair(lst_symbol)
+
+    start = datetime.now()
 
     if conf.config.GET_DATA:
         tf = conf.config.tf
@@ -101,7 +103,7 @@ if __name__ == '__main__':
     df_final_results_filtered.to_csv("final_global_results_filtered.csv")
 
 
-    print('final')
+    print('final elapsed time: ', datetime.now() - start)
 
     lst_columns = ['stop_loss',
                    "offset",
