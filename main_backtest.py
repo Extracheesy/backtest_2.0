@@ -13,6 +13,7 @@ from src.bol_trend_live import BolTrendLive
 from src.hull_suite import HullSuite
 from src.envelope import Envelope
 import src.backtest
+from utilities.utils import create_directory
 from src.bigwill import BigWill
 from src.cluc_may import ClucMay
 from src.scalping_engulfing import ScalpingEngulfing
@@ -23,10 +24,10 @@ from src.slope_is_dope import SlopeIsDope
 
 import numpy as np
 
-import os
+import os, sys
 import glob
 import asyncio
-
+import conf.config
 from src.crypto_data import ExchangeDataManager
 
 
@@ -37,6 +38,16 @@ def print_hi(name):
 
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
+
+    if len(sys.argv) >= 2:
+        if sys.argv[1] == "--COLAB":
+            conf.config.COLAB = True
+            results_path = conf.config.COLAB_DIR_ROOT + "./results/"
+        else:
+            results_path = "./results/"
+
+    create_directory(results_path)
+
     lst_symbol = src.backtest.get_lst_symbols(conf.config.symbol)
     lst_pair = src.backtest.get_lst_pair(lst_symbol)
 
@@ -64,24 +75,24 @@ if __name__ == '__main__':
 
     rows = len(df_final_results)
     print("=> final_global_results_no_filter.csv")
-    df_final_results.to_csv("final_global_results_no_filter.csv")
+    df_final_results.to_csv(results_path + "final_global_results_no_filter.csv")
     lst_df_resullts_fileterd = []
     df_tmp_df_final_results_final_wallet = df_final_results.copy()
     df_tmp_df_final_results_final_wallet.drop(df_tmp_df_final_results_final_wallet[df_tmp_df_final_results_final_wallet['final_wallet'] <= 1000].index, inplace=True)
     df_tmp_df_final_results_final_wallet.reset_index(drop=True, inplace=True)
-    df_tmp_df_final_results_final_wallet.to_csv("final_global_results_filtered_final_wallet.csv")
+    df_tmp_df_final_results_final_wallet.to_csv(results_path + "final_global_results_filtered_final_wallet.csv")
     lst_df_resullts_fileterd.append(df_tmp_df_final_results_final_wallet)
 
     df_tmp_df_final_results_vs_hold_pct = df_final_results.copy()
     df_tmp_df_final_results_vs_hold_pct.drop(df_tmp_df_final_results_vs_hold_pct[df_tmp_df_final_results_vs_hold_pct['vs_hold_pct'] < 0.1].index, inplace=True)
     df_tmp_df_final_results_vs_hold_pct.reset_index(drop=True, inplace=True)
-    df_tmp_df_final_results_vs_hold_pct.to_csv("final_global_results_filtered_vs_hold_pct.csv")
+    df_tmp_df_final_results_vs_hold_pct.to_csv(results_path + "final_global_results_filtered_vs_hold_pct.csv")
     lst_df_resullts_fileterd.append(df_tmp_df_final_results_vs_hold_pct)
 
     df_tmp_df_final_results_sharpe_ratio = df_final_results.copy()
     df_tmp_df_final_results_sharpe_ratio.drop(df_tmp_df_final_results_sharpe_ratio[df_tmp_df_final_results_sharpe_ratio['sharpe_ratio'] < 1.0].index, inplace=True)
     df_tmp_df_final_results_sharpe_ratio.reset_index(drop=True, inplace=True)
-    df_tmp_df_final_results_sharpe_ratio.to_csv("final_global_results_filtered_sharpe_ratio.csv")
+    df_tmp_df_final_results_sharpe_ratio.to_csv(results_path + "final_global_results_filtered_sharpe_ratio.csv")
     lst_df_resullts_fileterd.append(df_tmp_df_final_results_sharpe_ratio)
 
     if False:
@@ -100,7 +111,7 @@ if __name__ == '__main__':
 
     print("rows: ", rows, " filtered  rows: ", rows - len(df_final_results_filtered))
     print("=> final_global_results_filtered.csv")
-    df_final_results_filtered.to_csv("final_global_results_filtered.csv")
+    df_final_results_filtered.to_csv(results_path + "final_global_results_filtered.csv")
 
 
     print('final elapsed time: ', datetime.now() - start)

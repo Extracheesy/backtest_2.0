@@ -130,6 +130,9 @@ MULTI_PROCESS = True
 MULTI_PROCESS_STILL_ALIVE = 0
 MULTI_PROCESS_STILL_TOTAL_ITER = 0
 
+COLAB = False
+COLAB_DIR_ROOT = "../drive/MyDrive/Colab Notebooks/Backtest/"
+
 from src.activity_tracker import ActivityTracker
 TRACKER = ActivityTracker()
 
