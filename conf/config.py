@@ -126,7 +126,7 @@ lst_type = ["long", "short"]
 # lst_filter_start = ["2022"]
 lst_filter_start = ["2023"]
 
-MULTI_PROCESS = False
+MULTI_PROCESS = True
 MULTI_THREAD = True
 
 COLAB = False
