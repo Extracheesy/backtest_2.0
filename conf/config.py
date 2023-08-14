@@ -126,9 +126,8 @@ lst_type = ["long", "short"]
 # lst_filter_start = ["2022"]
 lst_filter_start = ["2023"]
 
-MULTI_PROCESS = True
-MULTI_PROCESS_STILL_ALIVE = 0
-MULTI_PROCESS_STILL_TOTAL_ITER = 0
+MULTI_PROCESS = False
+MULTI_THREAD = True
 
 COLAB = False
 COLAB_DIR_ROOT = "../drive/MyDrive/Colab Notebooks/Backtest/"

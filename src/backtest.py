@@ -5,6 +5,7 @@ import ccxt
 import conf.config
 import matplotlib.pyplot as plt
 import multiprocessing
+import concurrent.futures
 import asyncio
 from utilities.get_data import get_historical_from_db
 from utilities.utils import create_directory
@@ -387,6 +388,15 @@ def run_strategy_backtest(strategy, df_pair, lst_type, tf, filter_start):
         print("cpu count: ", num_processes)
         with multiprocessing.Pool(processes=num_processes) as pool:
             lst_df_results = pool.map(run_strategy, lst_of_lst_parameters)
+    elif conf.config.MULTI_THREAD:
+        conf.config.TRACKER.set_total_iteration(len(lst_of_lst_parameters))
+        conf.config.TRACKER.display_tracker()
+
+        num_threads = multiprocessing.cpu_count() * 5
+        # num_threads = os.cpu_count()
+        print("threads count: ", num_threads)
+        with concurrent.futures.ThreadPoolExecutor(max_workers=num_threads) as executor:
+            lst_df_results = list(executor.map(run_strategy, lst_of_lst_parameters))
     else:
         lst_df_results = list(map(run_strategy, lst_of_lst_parameters))
 
