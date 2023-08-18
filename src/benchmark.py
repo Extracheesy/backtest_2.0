@@ -327,7 +327,7 @@ class Benchmark():
             lst_results = lst_results_backup.copy()
 
     def benchmark_pair_analyse(self, start_date, strategy, df_parameters):
-        col_name = str(strategy) + "_" + str(start_date)
+        col_name = str(strategy) + "-" + str(start_date)
         self.df_benchmark_pair_lst_compare[col_name] = 0
         for pair in self.lst_pair:
             self.df_benchmark_pair_lst.loc[len(self.df_benchmark_pair_lst)] = 0
@@ -344,7 +344,7 @@ class Benchmark():
         self.df_benchmark_pair_lst_compare[strategy] = 0
 
         # Specify the prefix to filter columns
-        prefix_to_keep = strategy
+        prefix_to_keep = strategy + "-"
         # Filter columns based on the specified prefix
         filtered_columns = [col for col in df.columns if col.startswith(prefix_to_keep)]
         filtered_df = df[filtered_columns]
