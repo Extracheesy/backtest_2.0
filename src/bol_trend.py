@@ -92,7 +92,7 @@ class BolTrend():
                 & (df['close'] > df['higher_band']) 
                 & ((df['n1_higher_band'] - df['n1_lower_band']) / df['n1_lower_band'] > self.min_bol_spread)
                 & (df["close"] > df["long_ma"])
-                & (df["RSI"] <= self.rsi_high)
+                # & (df["RSI"] <= self.rsi_high)
                 , "open_long_market"
             ] = True
         
@@ -112,7 +112,7 @@ class BolTrend():
                 & (df['close'] < df['lower_band']) 
                 & ((df['n1_higher_band'] - df['n1_lower_band']) / df['n1_lower_band'] > self.min_bol_spread)
                 & (df["close"] < df["long_ma"])
-                & (df["RSI"] >= self.rsi_high)
+                # & (df["RSI"] >= self.rsi_high)
                 , "open_short_market"
             ] = True
         

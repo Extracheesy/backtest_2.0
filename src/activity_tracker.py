@@ -21,6 +21,8 @@ class ActivityTracker():
         self.current_timestamp = datetime.now()
         self.elapsed_time = self.current_timestamp - self.start
         if self.iteration == 0:
-            print("elapsed time: ", self.elapsed_time, " to be executed: ", self.total_iteration)
+            # print("elapsed time: ", self.elapsed_time, " to be executed: ", self.total_iteration)
+            pass
         else:
-            print("elapsed time: ", self.elapsed_time, " iteration: ", self.iteration, " remaining: ", self.iteration_remaining)
+            # print("elapsed time: ", self.elapsed_time, " iteration: ", self.iteration, " remaining: ", self.iteration_remaining)
+            pass

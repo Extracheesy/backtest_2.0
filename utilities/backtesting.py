@@ -104,7 +104,10 @@ def basic_single_asset_backtest_with_df(trades, days):
     buy_and_hold_wallet = initial_wallet + initial_wallet * buy_and_hold_pct
     vs_hold_pct = (final_wallet - buy_and_hold_wallet) / buy_and_hold_wallet
     vs_usd_pct = (final_wallet - initial_wallet) / initial_wallet
-    sharpe_ratio = (365 ** 0.5) * (df_days['daily_return'].mean() / df_days['daily_return'].std())
+    try:
+        sharpe_ratio = (365 ** 0.5) * (df_days['daily_return'].mean() / df_days['daily_return'].std())
+    except:
+        print("toto")
     total_fees = df_trades['open_fee'].sum() + df_trades['close_fee'].sum()
 
     best_trade = df_trades['trade_result_pct'].max()
@@ -326,8 +329,10 @@ def get_metrics(df_trades, df_days):
     df_days_copy = df_days.copy()
     df_days_copy['evolution'] = df_days_copy['wallet'].diff()
     df_days_copy['daily_return'] = df_days_copy['evolution']/df_days_copy['wallet'].shift(1)
-    sharpe_ratio = (365**0.5)*(df_days_copy['daily_return'].mean()/df_days_copy['daily_return'].std())
-    
+    try:
+        sharpe_ratio = (365**0.5)*(df_days_copy['daily_return'].mean()/df_days_copy['daily_return'].std())
+    except:
+        print("toto")
     df_days_copy['wallet_ath'] = df_days_copy['wallet'].cummax()
     df_days_copy['drawdown'] = df_days_copy['wallet_ath'] - df_days_copy['wallet']
     df_days_copy['drawdown_pct'] = df_days_copy['drawdown'] / df_days_copy['wallet_ath']

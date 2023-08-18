@@ -48,7 +48,7 @@ def get_ohlcv_values(df_ohlvc, time):
 df_ohlvc = get_historical_ohlc_data("BTCUSDT", past_days=164)
 
 df_ohlvc["date"] = pd.to_datetime(df_ohlvc["open_date_time"])
-df_ohlvc.reset_index(inplace=True)
+df_ohlvc.reset_index(inplace=True, drop=True)
 df_ohlvc.set_index('date', inplace=True)
 
 df_ohlvc['open'] = df_ohlvc['open'].astype(float)
@@ -235,7 +235,7 @@ while idx < len(lst_idx):
     # Create the mplfinance plot in the first subplot
     mpf.plot(df_ohlvc, ax=axs[0], type='candle', volume=False , axtitle='BTC' )  # Modify plot parameters as needed
 
-    df_ohlvc = df_ohlvc.reset_index()
+    df_ohlvc = df_ohlvc.reset_index(drop=True)
 
     axs[1].bar(df_ohlvc.index,df_ohlvc['my_big_move_detector'], color='blue', label='close')
 

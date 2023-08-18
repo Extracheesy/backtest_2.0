@@ -16,6 +16,7 @@ from src.bigwill import BigWill
 from src.bollinger_reversion import BollingerReversion
 from src.crypto_data import ExchangeDataManager
 from src.activity_tracker import ActivityTracker
+from utilities.utils import remove_duplicates_from_lst
 
 def replace_in_list(original_list, string_to_replace, replacement_string):
     modified_list = []
@@ -273,12 +274,35 @@ def run_strategy(lst_param):
 
     return df_final_results
 
+def get_filter_start_date(filter_start, df):
+    if filter_start == "2023":
+        df = df.loc[filter_start:]
+    elif filter_start == "1W":
+        n = 1 * 24 * 7
+        # Keep only the last n rows using loc[]
+        df = df.loc[df.index[-n:]]
+    elif filter_start == "2W":
+        n = 1 * 24 * 15
+        # Keep only the last n rows using loc[]
+        df = df.loc[df.index[-n:]]
+    elif filter_start == "1M":
+        n = 1 * 24 * 30
+        # Keep only the last n rows using loc[]
+        df = df.loc[df.index[-n:]]
+    elif filter_start == "6M":
+        n = 1 * 24 * 30 * 6
+        # Keep only the last n rows using loc[]
+        df = df.loc[df.index[-n:]]
+    return df
+
 def run_strategy_backtest(strategy, df_pair, lst_type, tf, filter_start):
     print("strategy: ", strategy, " strart: ", filter_start)
     df_final_results = pd.DataFrame()
 
     lst_pair = df_pair.index.to_list()
-    lst_pair = list(dict.fromkeys(lst_pair))
+    # lst_pair = list(dict.fromkeys(lst_pair))
+    lst_pair = remove_duplicates_from_lst(lst_pair)
+
 
     lst_stop_loss = conf.config.dct_lst_param["lst_stop_loss"]
     lst_bol_window = conf.config.dct_lst_param["lst_bol_window"]
@@ -300,6 +324,8 @@ def run_strategy_backtest(strategy, df_pair, lst_type, tf, filter_start):
         lst_stochOverSold = [0]
         lst_willOverSold = [0]
         lst_willOverBought = [0]
+        lst_rsi_high = [0]
+        lst_rsi_low = [0]
     if strategy == "bol_trend_no_ma":
         lst_offset = [0]
         lst_long_ma_window = [0]
@@ -375,7 +401,7 @@ def run_strategy_backtest(strategy, df_pair, lst_type, tf, filter_start):
                                                     for pair in lst_pair:
                                                         lst_param_test_tmp = lst_back_up_pair.copy()
                                                         df = df_pair.at[pair, "df_pair"]
-                                                        df = df.loc[filter_start:]
+                                                        df = get_filter_start_date(filter_start, df)
                                                         lst_param_test_tmp.append(pair)
                                                         lst_param_test_tmp.append(df)
                                                         lst_of_lst_parameters.append(lst_param_test_tmp)

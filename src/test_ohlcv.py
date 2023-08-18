@@ -47,7 +47,7 @@ df_ohlvc = get_historical_ohlc_data("BTCUSDT", past_days=2)
 print(df_ohlvc)
 
 df_ohlvc["date"] = pd.to_datetime(df_ohlvc["open_date_time"])
-df_ohlvc.reset_index(inplace=True)
+df_ohlvc.reset_index(inplace=True, drop=True)
 df_ohlvc.set_index('date', inplace=True)
 
 df_ohlvc['open'] = df_ohlvc['open'].astype(float)

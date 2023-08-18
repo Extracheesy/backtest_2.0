@@ -13,7 +13,8 @@ from src.bol_trend_live import BolTrendLive
 from src.hull_suite import HullSuite
 from src.envelope import Envelope
 import src.backtest
-from utilities.utils import create_directory
+from src.benchmark import Benchmark
+from utilities.utils import create_directory, clean_df_columns
 from src.bigwill import BigWill
 from src.cluc_may import ClucMay
 from src.scalping_engulfing import ScalpingEngulfing
@@ -43,8 +44,8 @@ if __name__ == '__main__':
         if sys.argv[1] == "--COLAB":
             conf.config.COLAB = True
             results_path = conf.config.COLAB_DIR_ROOT + "./results/"
-        else:
-            results_path = "./results/"
+    else:
+        results_path = "./results/"
 
     create_directory(results_path)
 
@@ -68,7 +69,16 @@ if __name__ == '__main__':
     lst_filter_start = conf.config.lst_filter_start
     tf = conf.config.tf
 
-    df_final_results = src.backtest.run_main_backtest(lst_strategy, lst_pair, lst_type, tf, lst_filter_start)
+
+    if conf.config.RUN_BACKTEST:
+        df_final_results = src.backtest.run_main_backtest(lst_strategy, lst_pair, lst_type, tf, lst_filter_start)
+    else:
+        df_final_results = pd.read_csv(results_path + "final_global_results_no_filter.csv")
+        df_final_results = clean_df_columns(df_final_results)
+
+    benchmark = Benchmark(df_final_results)
+    benchmark.run_benchmark()
+    benchmark.export_benchmark_strategy(results_path)
 
     # df_perf = src.backtest.get_best_performer(df_final_results, conf.config.NB_TOP_PERFORMER, conf.config.lst_performer)
     # df_perf.to_csv("best_perf.csv")

@@ -13,7 +13,7 @@ df = pd.read_csv("test_ma.csv")
 
 df["date"] = pd.to_datetime(df["timestamp"])
 
-df.reset_index(inplace=True)
+df.reset_index(inplace=True, drop=True)
 
 df.set_index('date', inplace=True)
 

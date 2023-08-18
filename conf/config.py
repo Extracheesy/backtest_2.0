@@ -1,3 +1,4 @@
+from utilities.utils import add_n_columns_to_list
 
 lst_symbol_ALL = [
     'BTC', 'ETH', 'XRP', 'EOS', 'BCH', 'LTC', 'ADA', 'ETC', 'LINK', 'TRX', 'DOT', 'DOGE', 'SOL', 'MATIC', 'BNB', 'UNI',
@@ -105,10 +106,10 @@ tf = "1h"
 start = "2023-01-01 00:00:00"
 
 # symbol = "ALL"
-# symbol = "BITGET"
+symbol = "BITGET"
 # symbol = "BTC_ETH"
 # symbol = "ETH"
-symbol = "BTC"
+# symbol = "BTC"
 
 # lst_strategy = ["bollinger_reversion"]
 # lst_strategy = ["bol_trend", "bollinger_reversion"]
@@ -116,7 +117,7 @@ symbol = "BTC"
 # lst_strategy = ["bol_trend", "big_will"]
 # lst_strategy = ["bol_trend"]
 # lst_strategy = ["bol_trend_no_ma"]
-lst_strategy = ["bol_trend", "bol_trend_no_ma"]
+lst_strategy = ["bol_trend", "bol_trend_no_ma", "big_will"]
 
 # lst_type=["short"]
 # lst_type=["long"]
@@ -124,14 +125,90 @@ lst_type = ["long", "short"]
 
 # lst_filter_start = ["2021"]
 # lst_filter_start = ["2022"]
-lst_filter_start = ["2023"]
+# lst_filter_start = ["2023", "1M"]
+# lst_filter_start = ["2023", "1M", "2W"]
+lst_filter_start = ["2W", "1M"]
 
 MULTI_PROCESS = True
-MULTI_THREAD = True
+MULTI_THREAD = False
 
 COLAB = False
 COLAB_DIR_ROOT = "../drive/MyDrive/Colab Notebooks/Backtest/"
 
+RUN_BACKTEST = False
+QUANTILE = 0.9 # 10%
+# QUANTILE = 0.8 # 20%
+
 from src.activity_tracker import ActivityTracker
 TRACKER = ActivityTracker()
 
+LST_COLUMN_STRATEGY_BENCHMARK= [
+    "start_date",
+    "startegy",
+    "pair",
+    "max_final_wallet",
+    "min_final_wallet",
+    "mean_final_wallet",
+    "%_>_1000_final_wallet",
+    "%_>_1500_final_wallet",
+    "%_>_2000_final_wallet",
+    "%_>_2500_final_wallet",
+    "%_>_3500_final_wallet",
+    "max_sharpe_ratio",
+    "min_sharpe_ratio",
+    "mean_sharpe_ratio",
+    "%_>_1_sharpe_ratio",
+    "%_>_2_sharpe_ratio",
+    "%_>_3_sharpe_ratio",
+    "max_vs_hold_pct",
+    "min_vs_hold_pct",
+    "mean_vs_hold_pct",
+    "max_global_win_rate",
+    "min_global_win_rate",
+    "mean_global_win_rate",
+    "quantile_10",
+    "quantile_20",
+    "quantile_30",
+    "quantile_40",
+    "quantile_50",
+    "quantile_60",
+    "quantile_70",
+    "quantile_80",
+    "quantile_90"
+]
+
+lst_header_parameters = [
+    "start_date",
+    "strategy",
+    "score"
+]
+
+LST_HEADERS_PAIRS_BENCMARK = [
+    "start_date",
+    "strategy",
+    "pair",
+    "score"
+]
+
+LST_HEADERS_LST_PAIRS_COMPARE_BENCHMARK = [
+    "pair"
+]
+
+lst_paramters = [
+    "stop_loss",
+    "offset",
+    "bol_window",
+    "bol_std",
+    "min_bol_spread",
+    "long_ma_window",
+    "stochOverBought",
+    "stochOverSold",
+    "willOverSold",
+    "willOverBought",
+    "rsi_high",
+    "rsi_low"
+]
+
+LST_COLUMN_PARAMETER_BENCHMARK = lst_header_parameters + lst_paramters
+NB_PAIRS_SELECTED = 35
+LST_COLUMN_PARAMETER_BENCHMARK = add_n_columns_to_list(LST_COLUMN_PARAMETER_BENCHMARK, "pair_", NB_PAIRS_SELECTED)
