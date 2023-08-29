@@ -36,3 +36,10 @@ def create_directory(directory_path):
         print(f"Directory '{directory_path}' created successfully.")
     else:
         print(f"Directory '{directory_path}' already exists.")
+
+def get_lst_intervals_name(nb, suffix):
+    lst = []
+    for i in range(0, nb, 1):
+        str_id = str(i) + "_" + suffix
+        lst.append(str_id)
+    return lst

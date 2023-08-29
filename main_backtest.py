@@ -14,7 +14,7 @@ from src.hull_suite import HullSuite
 from src.envelope import Envelope
 import src.backtest
 from src.benchmark import Benchmark
-from utilities.utils import create_directory, clean_df_columns
+from utilities.utils import create_directory, clean_df_columns, get_lst_intervals_name
 from src.bigwill import BigWill
 from src.cluc_may import ClucMay
 from src.scalping_engulfing import ScalpingEngulfing
@@ -66,7 +66,10 @@ if __name__ == '__main__':
 
     lst_strategy = conf.config.lst_strategy
     lst_type = conf.config.lst_type
-    lst_filter_start = conf.config.lst_filter_start
+    if conf.config.RUN_ON_INTERVALS:
+        lst_filter_start = get_lst_intervals_name(conf.config.INTERVALS, "INTRV")
+    else:
+        lst_filter_start = conf.config.lst_filter_start
     tf = conf.config.tf
 
 

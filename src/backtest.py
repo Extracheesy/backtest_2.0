@@ -275,7 +275,12 @@ def run_strategy(lst_param):
     return df_final_results
 
 def get_filter_start_date(filter_start, df):
-    if filter_start == "2023":
+    if conf.config.RUN_ON_INTERVALS:
+        len_df = len(df)
+        len_inervals = int(len_df / conf.config.INTERVALS)
+        prefix = int(filter_start.split("_")[0])
+        df = df.iloc[prefix * len_inervals : (prefix+1) * len_inervals]
+    elif filter_start == "2023":
         df = df.loc[filter_start:]
     elif filter_start == "1W":
         n = 1 * 24 * 7
@@ -297,7 +302,6 @@ def get_filter_start_date(filter_start, df):
 
 def run_strategy_backtest(strategy, df_pair, lst_type, tf, filter_start):
     print("strategy: ", strategy, " strart: ", filter_start)
-    df_final_results = pd.DataFrame()
 
     lst_pair = df_pair.index.to_list()
     # lst_pair = list(dict.fromkeys(lst_pair))

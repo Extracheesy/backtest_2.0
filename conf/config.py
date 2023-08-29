@@ -114,10 +114,10 @@ symbol = "BITGET"
 # lst_strategy = ["bollinger_reversion"]
 # lst_strategy = ["bol_trend", "bollinger_reversion"]
 # lst_strategy = ["bol_trend", "big_will", "bollinger_reversion"]
-# lst_strategy = ["bol_trend", "big_will"]
+lst_strategy = ["bol_trend", "big_will"]
 # lst_strategy = ["bol_trend"]
 # lst_strategy = ["bol_trend_no_ma"]
-lst_strategy = ["bol_trend", "bol_trend_no_ma", "big_will"]
+# lst_strategy = ["bol_trend", "bol_trend_no_ma", "big_will"]
 
 # lst_type=["short"]
 # lst_type=["long"]
@@ -128,6 +128,10 @@ lst_type = ["long", "short"]
 # lst_filter_start = ["2023", "1M"]
 # lst_filter_start = ["2023", "1M", "2W"]
 lst_filter_start = ["2W", "1M"]
+
+RUN_ON_INTERVALS = True
+INTERVALS = 10
+dct_inetrvals = {}
 
 MULTI_PROCESS = True
 MULTI_THREAD = False

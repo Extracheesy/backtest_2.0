@@ -342,6 +342,7 @@ class Benchmark():
     def benchmark_pair_final_lst(self, strategy):
         df = self.df_benchmark_pair_lst_compare.copy()
         self.df_benchmark_pair_lst_compare[strategy] = 0
+        self.df_benchmark_pair_lst_compare[strategy + "_cpt_0"] = 0
 
         # Specify the prefix to filter columns
         prefix_to_keep = strategy + "-"
@@ -356,4 +357,7 @@ class Benchmark():
             self.df_benchmark_pair_lst_compare[strategy] = np.where(self.df_benchmark_pair_lst_compare[cln] > 0,
                                                                     self.df_benchmark_pair_lst_compare[cln] + self.df_benchmark_pair_lst_compare[strategy],
                                                                     self.df_benchmark_pair_lst_compare[strategy])
+            self.df_benchmark_pair_lst_compare[strategy+"_cpt_0"] = np.where(self.df_benchmark_pair_lst_compare[cln] <= 0,
+                                                                             1 + self.df_benchmark_pair_lst_compare[strategy+"_cpt_0"],
+                                                                             self.df_benchmark_pair_lst_compare[strategy+"_cpt_0"])
 
