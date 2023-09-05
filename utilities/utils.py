@@ -18,6 +18,20 @@ def clean_df_columns(df):
     df_cleaned = df.drop(columns=columns_to_drop)
     return df_cleaned
 
+def clean_df(df):
+    # Identify and drop columns with only one unique element
+    columns_to_drop = [col for col in df.columns if df[col].nunique() == 1]
+    df = df.drop(columns=columns_to_drop)
+
+    # Convert all columns to string type
+    df = df.astype(str)
+
+    # Replace all "." with "," in the entire DataFrame
+    # df = df.replace('.', ',', regex=True) # wrong replace all the caratere with "."
+    df = df.applymap(lambda x: x.replace('.', ','))
+
+    return df
+
 def move_column_to_first_position(df, column_to_move):
     column = df.pop(column_to_move)
     df.insert(0, column_to_move, column)

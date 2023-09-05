@@ -2,7 +2,8 @@ import pandas as pd
 import numpy as np
 import conf.config
 from itertools import product
-from utilities.utils import move_column_to_first_position, remove_values_from_lst
+import multiprocessing
+from utilities.utils import move_column_to_first_position, remove_values_from_lst, clean_df
 
 class Benchmark():
     def __init__(
@@ -21,11 +22,11 @@ class Benchmark():
         self.lst_start_date = self.get_lst_from_df_column(self.df, 'start')
         self.lst_strategy = self.get_lst_from_df_column(self.df, 'strategy')
         self.lst_pair = self.get_lst_from_df_column(self.df, 'pair')
+        self.df_transposed_final_wallet = self.transpose_df(self.df, "final_wallet")
         self.df_benchmark_parameters = pd.DataFrame(columns=conf.config.LST_COLUMN_PARAMETER_BENCHMARK + self.lst_pair)
         self.df_benchmark_pair_lst = pd.DataFrame(columns=conf.config.LST_HEADERS_PAIRS_BENCMARK)
         self.df_benchmark_pair_lst_compare = pd.DataFrame(columns=conf.config.LST_HEADERS_LST_PAIRS_COMPARE_BENCHMARK)
         self.df_benchmark_pair_lst_compare["pair"] = self.lst_pair
-
 
     def run_benchmark(self):
         df = self.df.copy()
@@ -38,12 +39,22 @@ class Benchmark():
 
     def export_benchmark_strategy(self, path):
         self.df_benchmark_strategy = self.df_benchmark_strategy.round(2)
-        self.df_benchmark_strategy.to_csv(path + "benchmark_strategy.csv")
+        self.df_benchmark_strategy = clean_df(self.df_benchmark_strategy)
+        self.df_benchmark_strategy.to_csv(path + "benchmark_strategy.csv", sep=';')
+
         self.df_performers = self.df_performers.round(2)
-        self.df_performers.to_csv(path + "benchmark_performer.csv")
-        self.df_benchmark_parameters.to_csv(path + "benchmark_parameters.csv")
-        self.df_benchmark_pair_lst.to_csv(path + "benchmark_pairs.csv")
-        self.df_benchmark_pair_lst_compare.to_csv(path + "benchmark_compare_pairs.csv")
+        self.df_performers = clean_df(self.df_performers)
+        self.df_performers.to_csv(path + "benchmark_performer.csv", sep=';')
+
+        self.df_benchmark_parameters.to_csv(path + "benchmark_parameters.csv", sep=';')
+
+        self.df_benchmark_pair_lst.to_csv(path + "benchmark_pairs.csv", sep=';')
+
+        self.df_benchmark_pair_lst_compare.to_csv(path + "benchmark_compare_pairs.csv", sep=';')
+
+        self.df_transposed_final_wallet = self.df_transposed_final_wallet.round(4)
+        self.df_transposed_final_wallet = clean_df(self.df_transposed_final_wallet)
+        self.df_transposed_final_wallet.to_csv(path + "benchmark_transposed_final_wallet.csv", sep=';')
 
     def get_lst_from_df_column(self,df, column):
         return list(dict.fromkeys(df[column].to_list()))
@@ -343,6 +354,7 @@ class Benchmark():
         df = self.df_benchmark_pair_lst_compare.copy()
         self.df_benchmark_pair_lst_compare[strategy] = 0
         self.df_benchmark_pair_lst_compare[strategy + "_cpt_0"] = 0
+        self.df_benchmark_pair_lst_compare[strategy + "_cpt_10"] = 10
 
         # Specify the prefix to filter columns
         prefix_to_keep = strategy + "-"
@@ -360,4 +372,136 @@ class Benchmark():
             self.df_benchmark_pair_lst_compare[strategy+"_cpt_0"] = np.where(self.df_benchmark_pair_lst_compare[cln] <= 0,
                                                                              1 + self.df_benchmark_pair_lst_compare[strategy+"_cpt_0"],
                                                                              self.df_benchmark_pair_lst_compare[strategy+"_cpt_0"])
+            self.df_benchmark_pair_lst_compare[strategy+"_cpt_10"] = np.where(self.df_benchmark_pair_lst_compare[cln] <= 10,
+                                                                              1 + self.df_benchmark_pair_lst_compare[strategy+"_cpt_10"],
+                                                                              self.df_benchmark_pair_lst_compare[strategy+"_cpt_10"])
 
+    # Function to count values greater than a given threshold in the specified columns
+    def count_values_greater_than_threshold(self, row, threshold, columns_to_count):
+        return sum(row[col] > threshold for col in columns_to_count)
+
+    def transpose_df(self, df, cln):
+        tmp_val = "x"
+        df_transposed = df.copy()
+        df_transposed.loc[df[cln] < 0, cln] = 0
+        # filter
+        # df_transposed = df_transposed[df_transposed['vs_hold_pct'] >= 0]
+        # df_transposed = df_transposed.drop(df_transposed[df_transposed['vs_hold_pct'] < 0].index)
+
+        # List of columns to keep
+        columns_to_keep = conf.config.lst_paramters
+        columns_to_keep = ["start", "strategy", "pair"] + columns_to_keep + [cln]
+
+        # Use .loc[] to select only the desired columns
+        df_transposed = df_transposed.loc[:, columns_to_keep]
+
+        lst_cln_val = []
+        lst_cln_name = []
+        for start_date in self.lst_start_date:
+            column_name = start_date + "-" + cln
+            lst_cln_name.append(column_name)
+            df_transposed[column_name] = tmp_val
+            df_transposed[column_name] = np.where(df_transposed["start"] == start_date,
+                                                  df_transposed[cln],
+                                                  df_transposed[column_name])
+            lst_val = df_transposed[column_name].tolist()
+            lst_val = list(filter(lambda x: x != tmp_val, lst_val))
+            lst_cln_val.append(lst_val)
+
+        df_transposed_filtered = df_transposed[df_transposed['start'] == self.lst_start_date[0]]
+        df_transposed_filtered = df_transposed_filtered.drop('start', axis=1)
+        df_transposed_filtered = df_transposed_filtered.drop(cln, axis=1)
+
+        for start_date, lst_val_for_date in zip(self.lst_start_date, lst_cln_val):
+            column_name = start_date + "-" + cln
+            df_transposed_filtered[column_name] = lst_val_for_date
+
+        lst_param = df_transposed_filtered.columns.tolist()
+        lst_values_to_drop = ['strategy', 'pair'] + lst_cln_name
+        self.lst_param_result = [x for x in lst_param if x not in lst_values_to_drop]
+
+        df_transposed_filtered['total_$'] = df_transposed_filtered[lst_cln_name].sum(axis=1)
+        df_transposed_filtered['total_$'] = df_transposed_filtered['total_$'] / len(self.lst_start_date)
+
+        # Define the threshold value (e.g., 100)
+        threshold_value = 1000
+        # Create a new column 'Count_Column' containing the count of values > threshold
+        df_transposed_filtered['positive_column'] = df_transposed_filtered.apply(self.count_values_greater_than_threshold,
+                                                                                 args=(threshold_value, lst_cln_name),
+                                                                                 axis=1)
+        threshold_value = 1200
+        df_transposed_filtered['profitable_column'] = df_transposed_filtered.apply(self.count_values_greater_than_threshold,
+                                                                                   args=(threshold_value, lst_cln_name),
+                                                                                   axis=1)
+
+        for start_date in self.lst_start_date:
+            column_name = start_date + "-" + cln
+            df_transposed_filtered = df_transposed_filtered.drop(df_transposed_filtered[df_transposed_filtered[column_name] <= 0].index)
+
+        df_transposed_filtered['vs_hold_pct_avg'] = 0
+        df_transposed_filtered['vs_hold_pct_neg'] = 0
+        df_transposed_filtered['sharpe_ratio_avg'] = 0
+        df_transposed_filtered['global_win_rate_avg'] = 0
+        df_transposed_filtered['global_win_rate_max'] = 0
+        df_transposed_filtered['global_win_rate_min'] = 0
+        df_transposed_filtered['total_trades'] = 0
+        df_transposed_filtered['max_days_drawdown'] = 0
+
+        # df_transposed_filtered = df_transposed_filtered.loc[:100]
+        print('len df_transposed_filtered: ', len(df_transposed_filtered))
+
+        if conf.config.MULTI_PROCESS:
+            num_cores = multiprocessing.cpu_count()
+            # num_processes = os.cpu_count()
+            print("cpu count: ", num_cores)
+
+            # Split the DataFrame into chunks based on the number of CPU cores
+            chunk_size = len(df_transposed_filtered) // num_cores
+            print("chunk_size: ", chunk_size)
+            df_chunks = [df_transposed_filtered[i:i + chunk_size] for i in range(0, len(df_transposed_filtered), chunk_size)]
+
+            with multiprocessing.Pool(processes=num_cores) as pool:
+                lst_df_results = pool.map(self.multi_thread_transpose_df, df_chunks)
+
+            # Combine the modified rows back into the DataFrame
+            df_transposed_filtered = pd.concat(lst_df_results, ignore_index=True)
+                
+        else:
+            df_transposed_filtered = df_transposed_filtered.apply(self.modify_transposed_row, axis=1)
+
+        df_transposed_filtered = df_transposed_filtered[df_transposed_filtered['vs_hold_pct_avg'] >= 0]
+        df_transposed_filtered = df_transposed_filtered[df_transposed_filtered['sharpe_ratio_avg'] >= 0]
+        df_transposed_filtered = df_transposed_filtered[df_transposed_filtered['total_$'] >= 1000]
+        df_transposed_filtered = df_transposed_filtered[df_transposed_filtered['positive_column'] >= int(len(self.lst_start_date)/2)]
+
+
+        return df_transposed_filtered
+
+    def multi_thread_transpose_df(self, df):
+        return df.apply(self.modify_transposed_row, axis=1)
+
+    def modify_transposed_row(self, row):
+        strategy = row['strategy']
+        pair = row['pair']
+        lst_param_row = []
+        for param in self.lst_param_result:
+            lst_param_row.append(row[param])
+
+        df_fitered = self.df.copy()
+        df_fitered = df_fitered[df_fitered['strategy'] == strategy]
+        df_fitered = df_fitered[df_fitered['pair'] == pair]
+
+        for param, param_val in zip(self.lst_param_result, lst_param_row):
+            df_fitered = df_fitered[df_fitered[param] == param_val]
+
+        row['vs_hold_pct_avg'] = df_fitered['vs_hold_pct'].mean()
+        # Count the values below 0 in the specified column
+        row['vs_hold_pct_neg'] = (df_fitered['vs_hold_pct'] < 0).sum()
+        row['sharpe_ratio_avg'] = df_fitered['sharpe_ratio'].mean()
+        row['total_trades'] = df_fitered['total_trades'].sum()
+        row['max_days_drawdown'] = df_fitered['max_days_drawdown'].max()
+        row['global_win_rate_avg'] = df_fitered['global_win_rate'].mean()
+        row['global_win_rate_max'] = df_fitered['global_win_rate'].max()
+        row['global_win_rate_min'] = df_fitered['global_win_rate'].min()
+
+        return row

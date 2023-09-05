@@ -411,8 +411,8 @@ def run_strategy_backtest(strategy, df_pair, lst_type, tf, filter_start):
                                                         lst_of_lst_parameters.append(lst_param_test_tmp)
 
     if conf.config.MULTI_PROCESS:
-        conf.config.TRACKER.set_total_iteration(len(lst_of_lst_parameters))
-        conf.config.TRACKER.display_tracker()
+        # conf.config.TRACKER.set_total_iteration(len(lst_of_lst_parameters))
+        # conf.config.TRACKER.display_tracker()
         # Number of worker processes
         num_processes = multiprocessing.cpu_count()
         # num_processes = os.cpu_count()

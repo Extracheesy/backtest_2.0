@@ -1,5 +1,8 @@
 from utilities.utils import add_n_columns_to_list
 
+RUN_BACKTEST = False
+GET_DATA = False
+
 lst_symbol_ALL = [
     'BTC', 'ETH', 'XRP', 'EOS', 'BCH', 'LTC', 'ADA', 'ETC', 'LINK', 'TRX', 'DOT', 'DOGE', 'SOL', 'MATIC', 'BNB', 'UNI',
     'ICP', 'AAVE', 'FIL', 'XLM', 'ATOM',
@@ -53,7 +56,6 @@ lst_symbol_BTC_ETH = ['BTC', 'ETH']
 lst_symbol_BTC = ['BTC']
 lst_symbol_ETH = ['ETH']
 
-GET_DATA = False
 VOLATILITY_ANALYSE = False
 ENGAGED_OVERLAP = False
 PRINT_OUT = False
@@ -114,7 +116,8 @@ symbol = "BITGET"
 # lst_strategy = ["bollinger_reversion"]
 # lst_strategy = ["bol_trend", "bollinger_reversion"]
 # lst_strategy = ["bol_trend", "big_will", "bollinger_reversion"]
-lst_strategy = ["bol_trend", "big_will"]
+# lst_strategy = ["bol_trend", "big_will"]
+lst_strategy = ["big_will"]
 # lst_strategy = ["bol_trend"]
 # lst_strategy = ["bol_trend_no_ma"]
 # lst_strategy = ["bol_trend", "bol_trend_no_ma", "big_will"]
@@ -139,7 +142,6 @@ MULTI_THREAD = False
 COLAB = False
 COLAB_DIR_ROOT = "../drive/MyDrive/Colab Notebooks/Backtest/"
 
-RUN_BACKTEST = False
 QUANTILE = 0.9 # 10%
 # QUANTILE = 0.8 # 20%
 
@@ -216,3 +218,5 @@ lst_paramters = [
 LST_COLUMN_PARAMETER_BENCHMARK = lst_header_parameters + lst_paramters
 NB_PAIRS_SELECTED = 35
 LST_COLUMN_PARAMETER_BENCHMARK = add_n_columns_to_list(LST_COLUMN_PARAMETER_BENCHMARK, "pair_", NB_PAIRS_SELECTED)
+
+
