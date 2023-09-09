@@ -14,12 +14,13 @@ from src.hull_suite import HullSuite
 from src.envelope import Envelope
 import src.backtest
 from src.benchmark import Benchmark
-from utilities.utils import create_directory, clean_df_columns, get_lst_intervals_name
+from utilities.utils import create_directory, clean_df_columns, get_lst_intervals_name, clean_df
 from src.bigwill import BigWill
 from src.cluc_may import ClucMay
 from src.scalping_engulfing import ScalpingEngulfing
 from src.analyse_pair import AnalysePair
 from src.cryptobot_indicators import TechnicalAnalysis
+from src.filter import filter_df_from_column_values
 
 from src.slope_is_dope import SlopeIsDope
 
@@ -52,7 +53,7 @@ if __name__ == '__main__':
     lst_symbol = src.backtest.get_lst_symbols(conf.config.symbol)
     lst_pair = src.backtest.get_lst_pair(lst_symbol)
 
-    start = datetime.now()
+    run_start = datetime.now()
 
     if conf.config.GET_DATA:
         tf = conf.config.tf
@@ -79,55 +80,64 @@ if __name__ == '__main__':
         df_final_results = pd.read_csv(results_path + "final_global_results_no_filter.csv")
         df_final_results = clean_df_columns(df_final_results)
 
-    benchmark = Benchmark(df_final_results)
-    benchmark.run_benchmark()
-    benchmark.export_benchmark_strategy(results_path)
+    if conf.config.RUN_BENCHMARK:
+        benchmark = Benchmark(df_final_results)
+        benchmark.run_benchmark()
+        benchmark.export_benchmark_strategy(results_path)
 
-    # df_perf = src.backtest.get_best_performer(df_final_results, conf.config.NB_TOP_PERFORMER, conf.config.lst_performer)
-    # df_perf.to_csv("best_perf.csv")
+        rows = len(df_final_results)
+        print("=> final_global_results_no_filter.csv")
+        df_final_results.to_csv(results_path + "final_global_results_no_filter.csv")
+        lst_df_resullts_fileterd = []
+        df_tmp_df_final_results_final_wallet = df_final_results.copy()
+        df_tmp_df_final_results_final_wallet.drop(df_tmp_df_final_results_final_wallet[df_tmp_df_final_results_final_wallet['final_wallet'] <= 1000].index, inplace=True)
+        df_tmp_df_final_results_final_wallet.reset_index(drop=True, inplace=True)
+        df_tmp_df_final_results_final_wallet.to_csv(results_path + "final_global_results_filtered_final_wallet.csv")
+        lst_df_resullts_fileterd.append(df_tmp_df_final_results_final_wallet)
 
-    rows = len(df_final_results)
-    print("=> final_global_results_no_filter.csv")
-    df_final_results.to_csv(results_path + "final_global_results_no_filter.csv")
-    lst_df_resullts_fileterd = []
-    df_tmp_df_final_results_final_wallet = df_final_results.copy()
-    df_tmp_df_final_results_final_wallet.drop(df_tmp_df_final_results_final_wallet[df_tmp_df_final_results_final_wallet['final_wallet'] <= 1000].index, inplace=True)
-    df_tmp_df_final_results_final_wallet.reset_index(drop=True, inplace=True)
-    df_tmp_df_final_results_final_wallet.to_csv(results_path + "final_global_results_filtered_final_wallet.csv")
-    lst_df_resullts_fileterd.append(df_tmp_df_final_results_final_wallet)
+        df_tmp_df_final_results_vs_hold_pct = df_final_results.copy()
+        df_tmp_df_final_results_vs_hold_pct.drop(df_tmp_df_final_results_vs_hold_pct[df_tmp_df_final_results_vs_hold_pct['vs_hold_pct'] < 0.1].index, inplace=True)
+        df_tmp_df_final_results_vs_hold_pct.reset_index(drop=True, inplace=True)
+        df_tmp_df_final_results_vs_hold_pct.to_csv(results_path + "final_global_results_filtered_vs_hold_pct.csv")
+        lst_df_resullts_fileterd.append(df_tmp_df_final_results_vs_hold_pct)
 
-    df_tmp_df_final_results_vs_hold_pct = df_final_results.copy()
-    df_tmp_df_final_results_vs_hold_pct.drop(df_tmp_df_final_results_vs_hold_pct[df_tmp_df_final_results_vs_hold_pct['vs_hold_pct'] < 0.1].index, inplace=True)
-    df_tmp_df_final_results_vs_hold_pct.reset_index(drop=True, inplace=True)
-    df_tmp_df_final_results_vs_hold_pct.to_csv(results_path + "final_global_results_filtered_vs_hold_pct.csv")
-    lst_df_resullts_fileterd.append(df_tmp_df_final_results_vs_hold_pct)
+        df_tmp_df_final_results_sharpe_ratio = df_final_results.copy()
+        df_tmp_df_final_results_sharpe_ratio.drop(df_tmp_df_final_results_sharpe_ratio[df_tmp_df_final_results_sharpe_ratio['sharpe_ratio'] < 1.0].index, inplace=True)
+        df_tmp_df_final_results_sharpe_ratio.reset_index(drop=True, inplace=True)
+        df_tmp_df_final_results_sharpe_ratio.to_csv(results_path + "final_global_results_filtered_sharpe_ratio.csv")
+        lst_df_resullts_fileterd.append(df_tmp_df_final_results_sharpe_ratio)
 
-    df_tmp_df_final_results_sharpe_ratio = df_final_results.copy()
-    df_tmp_df_final_results_sharpe_ratio.drop(df_tmp_df_final_results_sharpe_ratio[df_tmp_df_final_results_sharpe_ratio['sharpe_ratio'] < 1.0].index, inplace=True)
-    df_tmp_df_final_results_sharpe_ratio.reset_index(drop=True, inplace=True)
-    df_tmp_df_final_results_sharpe_ratio.to_csv(results_path + "final_global_results_filtered_sharpe_ratio.csv")
-    lst_df_resullts_fileterd.append(df_tmp_df_final_results_sharpe_ratio)
+        if False:
+            df_tmp_df_final_results_global_win_rate = df_final_results.copy()
+            df_tmp_df_final_results_global_win_rate.drop(df_tmp_df_final_results_global_win_rate[df_tmp_df_final_results_global_win_rate['global_win_rate'] < 0.5].index, inplace=True)
+            df_tmp_df_final_results_global_win_rate.reset_index(drop=True, inplace=True)
+            lst_df_resullts_fileterd.append(df_tmp_df_final_results_global_win_rate)
 
-    if False:
-        df_tmp_df_final_results_global_win_rate = df_final_results.copy()
-        df_tmp_df_final_results_global_win_rate.drop(df_tmp_df_final_results_global_win_rate[df_tmp_df_final_results_global_win_rate['global_win_rate'] < 0.5].index, inplace=True)
-        df_tmp_df_final_results_global_win_rate.reset_index(drop=True, inplace=True)
-        lst_df_resullts_fileterd.append(df_tmp_df_final_results_global_win_rate)
+        df_final_results_filtered = pd.concat(lst_df_resullts_fileterd,
+                                              ignore_index=True, sort=False)
+        df_final_results_filtered.reset_index(drop=True, inplace=True)
+        rows_filtered = len(df_final_results_filtered)
+        df_final_results_filtered.drop_duplicates(inplace=True)
+        duplicates_filtered = rows_filtered - len(df_final_results_filtered)
+        print("fileted rows: ", rows_filtered, " filtered dropped duplicates rows: ", duplicates_filtered, " rows")
 
-    df_final_results_filtered = pd.concat(lst_df_resullts_fileterd,
-                                          ignore_index=True, sort=False)
-    df_final_results_filtered.reset_index(drop=True, inplace=True)
-    rows_filtered = len(df_final_results_filtered)
-    df_final_results_filtered.drop_duplicates(inplace=True)
-    duplicates_filtered = rows_filtered - len(df_final_results_filtered)
-    print("fileted rows: ", rows_filtered, " filtered dropped duplicates rows: ", duplicates_filtered, " rows")
-
-    print("rows: ", rows, " filtered  rows: ", rows - len(df_final_results_filtered))
-    print("=> final_global_results_filtered.csv")
-    df_final_results_filtered.to_csv(results_path + "final_global_results_filtered.csv")
+        print("rows: ", rows, " filtered  rows: ", rows - len(df_final_results_filtered))
+        print("=> final_global_results_filtered.csv")
+        df_final_results_filtered.to_csv(results_path + "final_global_results_filtered.csv")
 
 
-    print('final elapsed time: ', datetime.now() - start)
+    if conf.config.RUN_FILTER:
+        df_param = pd.read_csv(results_path + "benchmark_transposed_final_wallet.csv", sep=';')
+        df_param = clean_df_columns(df_param)
+        # df_pairs = pd.read_csv(results_path + "benchmark_compare_pairs.csv")
+
+        df_filtered = filter_df_from_column_values(df_param, 0.9) # 10%
+        df_filtered = clean_df(df_filtered)
+        df_filtered.to_csv(results_path + "benchmark_transposed_final_wallet_filterd.csv", sep=';')
+
+    print('final elapsed time: ', datetime.now() - run_start)
+
+    exit()
 
     lst_columns = ['stop_loss',
                    "offset",

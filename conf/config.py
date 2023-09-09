@@ -1,7 +1,9 @@
 from utilities.utils import add_n_columns_to_list
 
-RUN_BACKTEST = False
-GET_DATA = False
+GET_DATA = True
+RUN_BACKTEST = True
+RUN_BENCHMARK = True
+RUN_FILTER = True
 
 lst_symbol_ALL = [
     'BTC', 'ETH', 'XRP', 'EOS', 'BCH', 'LTC', 'ADA', 'ETC', 'LINK', 'TRX', 'DOT', 'DOGE', 'SOL', 'MATIC', 'BNB', 'UNI',

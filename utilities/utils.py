@@ -20,7 +20,9 @@ def clean_df_columns(df):
 
 def clean_df(df):
     # Identify and drop columns with only one unique element
-    columns_to_drop = [col for col in df.columns if df[col].nunique() == 1]
+    # columns_to_drop = [col for col in df.columns if df[col].nunique() == 1]
+    columns_to_drop = [col for col in df.columns if df[col].nunique() == 1 and col != 'strategy' and col != 'pair']
+
     df = df.drop(columns=columns_to_drop)
 
     # Convert all columns to string type
