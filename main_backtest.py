@@ -21,7 +21,7 @@ from src.cluc_may import ClucMay
 from src.scalping_engulfing import ScalpingEngulfing
 from src.analyse_pair import AnalysePair
 from src.cryptobot_indicators import TechnicalAnalysis
-from src.filter import filter_df_from_column_values
+from src.filter import filter_df_from_column_values, filter_and_benchmark_global_results
 
 from src.slope_is_dope import SlopeIsDope
 
@@ -165,7 +165,16 @@ if __name__ == '__main__':
         create_directory(conf.config.final_target_results)
         copy_files_to_target_dir(lst_results_dir, conf.config.final_target_results, "benchmark_transposed_final_wallet_filterd")
         merge_csv(conf.config.final_target_results, "benchmark_transposed_final_wallet_filterd", "merged_df_reults.csv")
+        df_global_results, df_global_results_filtered_1, df_global_results_filtered_2 = filter_and_benchmark_global_results(conf.config.final_target_results, "merged_df_reults.csv")
 
+        df_global_results = clean_df(df_global_results)
+        df_global_results.to_csv(conf.config.final_target_results + "/" + "merged_df_results_analysed.csv", sep=";")
+
+        df_global_results_filtered_1 = clean_df(df_global_results_filtered_1)
+        df_global_results_filtered_1.to_csv(conf.config.final_target_results + "/" + "merged_df_results_analysed_filtered_1_best.csv", sep=";")
+
+        df_global_results_filtered_2 = clean_df(df_global_results_filtered_2)
+        df_global_results_filtered_2.to_csv(conf.config.final_target_results + "/" + "merged_df_results_analysed_filtered_2_best.csv", sep=";")
 
     print('final elapsed time: ', datetime.now() - run_start)
 

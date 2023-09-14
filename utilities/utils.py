@@ -125,3 +125,6 @@ def merge_csv(csv_dir , prefix, target):
         all_data = move_column_first(all_data, "creation_date")
         all_data.to_csv(output_csv, index=False, sep=";")
         print(f"Merged data saved to '{output_csv}'")
+
+def get_lst_from_df_column(df, column):
+    return list(dict.fromkeys(df[column].to_list()))
