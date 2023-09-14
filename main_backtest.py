@@ -175,6 +175,7 @@ if __name__ == '__main__':
 
         df_global_results_filtered_2 = clean_df(df_global_results_filtered_2)
         df_global_results_filtered_2.to_csv(conf.config.final_target_results + "/" + "merged_df_results_analysed_filtered_2_best.csv", sep=";")
+        print("************** RUN GLOBAL FILTER COMPLETED **************")
 
     print('final elapsed time: ', datetime.now() - run_start)
 
