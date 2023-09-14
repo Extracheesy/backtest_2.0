@@ -5,6 +5,7 @@
 import pandas as pd
 from datetime import datetime, timedelta
 import conf.config
+import warnings
 
 from src.mean_reversion import MeanReversion
 from src.mean_bol_trend import MeanBolTrend
@@ -14,7 +15,7 @@ from src.hull_suite import HullSuite
 from src.envelope import Envelope
 import src.backtest
 from src.benchmark import Benchmark
-from utilities.utils import create_directory, clean_df_columns, get_lst_intervals_name, clean_df
+from utilities.utils import create_directory, clean_df_columns, get_lst_intervals_name, clean_df, get_dir_strating_with, copy_files_to_target_dir, rm_dir, merge_csv
 from src.bigwill import BigWill
 from src.cluc_may import ClucMay
 from src.scalping_engulfing import ScalpingEngulfing
@@ -48,6 +49,10 @@ if __name__ == '__main__':
     else:
         results_path = "./results/"
 
+    if conf.config.NO_WARNINGS:
+        # To filter out all warnings and hide them
+        warnings.filterwarnings("ignore")
+
     create_directory(results_path)
 
     lst_symbol = src.backtest.get_lst_symbols(conf.config.symbol)
@@ -56,9 +61,12 @@ if __name__ == '__main__':
     run_start = datetime.now()
 
     if conf.config.GET_DATA:
+        print("************** RUN GET DATA **************")
         tf = conf.config.tf
         start = conf.config.start
         src.backtest.get_ohlvc(tf, start, lst_pair)
+        print('elapsed time: ', datetime.now() - run_start)
+        print("************** GET DATA COMPLETED **************")
 
     if conf.config.VOLATILITY_ANALYSE:
         src.backtest.analyse_envelope_volatility(conf.config.lst_offset, lst_pair)
@@ -75,12 +83,16 @@ if __name__ == '__main__':
 
 
     if conf.config.RUN_BACKTEST:
+        print("************** RUN BACKTEST **************")
         df_final_results = src.backtest.run_main_backtest(lst_strategy, lst_pair, lst_type, tf, lst_filter_start)
+        print('elapsed time: ', datetime.now() - run_start)
+        print("************** BACKTEST COMPLETED **************")
     else:
         df_final_results = pd.read_csv(results_path + "final_global_results_no_filter.csv")
         df_final_results = clean_df_columns(df_final_results)
 
     if conf.config.RUN_BENCHMARK:
+        print("************** RUN BENCHMARK **************")
         benchmark = Benchmark(df_final_results)
         benchmark.run_benchmark()
         benchmark.export_benchmark_strategy(results_path)
@@ -124,16 +136,36 @@ if __name__ == '__main__':
         print("rows: ", rows, " filtered  rows: ", rows - len(df_final_results_filtered))
         print("=> final_global_results_filtered.csv")
         df_final_results_filtered.to_csv(results_path + "final_global_results_filtered.csv")
+        print('elapsed time: ', datetime.now() - run_start)
+        print("************** BENCHMARK COMPLETED **************")
 
 
     if conf.config.RUN_FILTER:
-        df_param = pd.read_csv(results_path + "benchmark_transposed_final_wallet.csv", sep=';')
+        print("************** RUN FILTER **************")
+
+        # Get the current date
+        current_date = datetime.now()
+        # Format the year, day, and month as "YYDDMM"
+        year_day_month_string = current_date.strftime("%y%d%m")
+
+        df_param = pd.read_csv(results_path + "benchmark_transposed_final_wallet-" + year_day_month_string + ".csv", sep=';')
         df_param = clean_df_columns(df_param)
         # df_pairs = pd.read_csv(results_path + "benchmark_compare_pairs.csv")
 
         df_filtered = filter_df_from_column_values(df_param, 0.9) # 10%
         df_filtered = clean_df(df_filtered)
-        df_filtered.to_csv(results_path + "benchmark_transposed_final_wallet_filterd.csv", sep=';')
+        df_filtered.to_csv(results_path + "benchmark_transposed_final_wallet_filterd-" + year_day_month_string + ".csv", sep=';')
+        print('elapsed time: ', datetime.now() - run_start)
+        print("************** FILTER COMPLETED **************")
+
+    if conf.config.GLOBAL_FILTER:
+        print("************** RUN GLOBAL FILTER **************")
+        lst_results_dir = get_dir_strating_with('./', 'results_')
+        rm_dir(conf.config.final_target_results)
+        create_directory(conf.config.final_target_results)
+        copy_files_to_target_dir(lst_results_dir, conf.config.final_target_results, "benchmark_transposed_final_wallet_filterd")
+        merge_csv(conf.config.final_target_results, "benchmark_transposed_final_wallet_filterd", "merged_df_reults.csv")
+
 
     print('final elapsed time: ', datetime.now() - run_start)
 

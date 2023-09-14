@@ -1,9 +1,10 @@
 from utilities.utils import add_n_columns_to_list
 
-GET_DATA = True
-RUN_BACKTEST = True
-RUN_BENCHMARK = True
-RUN_FILTER = True
+GET_DATA = False
+RUN_BACKTEST = False
+RUN_BENCHMARK = False
+RUN_FILTER = False
+GLOBAL_FILTER = True
 
 lst_symbol_ALL = [
     'BTC', 'ETH', 'XRP', 'EOS', 'BCH', 'LTC', 'ADA', 'ETC', 'LINK', 'TRX', 'DOT', 'DOGE', 'SOL', 'MATIC', 'BNB', 'UNI',
@@ -61,6 +62,7 @@ lst_symbol_ETH = ['ETH']
 VOLATILITY_ANALYSE = False
 ENGAGED_OVERLAP = False
 PRINT_OUT = False
+NO_WARNINGS = True
 
 NB_TOP_PERFORMER = 5
 lst_performer = ["final_wallet", "sharpe_ratio",
@@ -135,7 +137,7 @@ lst_type = ["long", "short"]
 lst_filter_start = ["2W", "1M"]
 
 RUN_ON_INTERVALS = True
-INTERVALS = 10
+INTERVALS = 10 + 1
 dct_inetrvals = {}
 
 MULTI_PROCESS = True
@@ -220,5 +222,7 @@ lst_paramters = [
 LST_COLUMN_PARAMETER_BENCHMARK = lst_header_parameters + lst_paramters
 NB_PAIRS_SELECTED = 35
 LST_COLUMN_PARAMETER_BENCHMARK = add_n_columns_to_list(LST_COLUMN_PARAMETER_BENCHMARK, "pair_", NB_PAIRS_SELECTED)
+
+final_target_results = "merged_results"
 
 

@@ -277,9 +277,10 @@ def run_strategy(lst_param):
 def get_filter_start_date(filter_start, df):
     if conf.config.RUN_ON_INTERVALS:
         len_df = len(df)
-        len_inervals = int(len_df / conf.config.INTERVALS)
+        len_inervals = int(len_df / (conf.config.INTERVALS - 1))
         prefix = int(filter_start.split("_")[0])
-        df = df.iloc[prefix * len_inervals : (prefix+1) * len_inervals]
+        if prefix != (conf.config.INTERVALS - 1):
+            df = df.iloc[prefix * len_inervals : (prefix+1) * len_inervals]
     elif filter_start == "2023":
         df = df.loc[filter_start:]
     elif filter_start == "1W":

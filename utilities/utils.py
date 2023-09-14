@@ -1,4 +1,7 @@
 import os
+import shutil
+import glob
+import pandas as pd
 
 def get_n_columns(df, columns, n=1):
     dt = df.copy()
@@ -59,3 +62,66 @@ def get_lst_intervals_name(nb, suffix):
         str_id = str(i) + "_" + suffix
         lst.append(str_id)
     return lst
+
+def get_dir_strating_with(path, prefix):
+    # Specify the directory path where you want to search for directories
+    directory_path = path
+
+    # Use a list comprehension to find all directories starting with "results"
+    result_directories = [d for d in os.listdir(directory_path) if os.path.isdir(os.path.join(directory_path, d)) and d.startswith(prefix)]
+
+    return result_directories
+
+def copy_files_to_target_dir(directories, target_directory, prefix):
+    # Iterate through each directory
+    for source_directory in directories:
+        # List files in the source directory
+        files = os.listdir(source_directory)
+
+        # Iterate through the files and copy those starting with "toto" to the target directory
+        for file in files:
+            if file.startswith(prefix):
+                source_file_path = os.path.join(source_directory, file)
+                target_file_path = os.path.join(target_directory, file)
+                shutil.copy(source_file_path, target_file_path)
+
+
+def rm_dir(directory_path):
+    try:
+        shutil.rmtree(directory_path)
+        print(f"Directory '{directory_path}' and its contents have been forcefully deleted.")
+    except OSError as e:
+        print(f"Error: {e}")
+
+def move_column_first(df, column_to_move):
+    # Step 1: Remove the column from the DataFrame
+    column_removed = df.pop(column_to_move)
+
+    # Step 2: Reinsert the column at the first position
+    df.insert(0, column_to_move, column_removed)
+
+    return df
+
+def merge_csv(csv_dir , prefix, target):
+    # Step 2: List CSV files in the directory
+    csv_files = glob.glob(csv_dir + "/" + prefix + '*.csv')
+
+    # Check if any CSV files were found
+    if not csv_files:
+        print("No CSV files starting with " + prefix + " found in the specified directory.")
+    else:
+        # Step 3 and 4: Read and merge the CSV files into a single DataFrame
+        all_data = pd.DataFrame()
+        for file in csv_files:
+            df = pd.read_csv(file, sep=";", index_col=None)
+            suffix = file.split("-")[1]
+            suffix = suffix.split(".")[0]
+            df["creation_date"] = suffix
+            all_data = pd.concat([all_data, df], ignore_index=True)
+
+        # Step 5: Save the merged DataFrame to a new CSV file
+        output_csv = csv_dir + "/" + target
+        all_data = clean_df_columns(all_data)
+        all_data = move_column_first(all_data, "creation_date")
+        all_data.to_csv(output_csv, index=False, sep=";")
+        print(f"Merged data saved to '{output_csv}'")

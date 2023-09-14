@@ -5,6 +5,9 @@ import datetime
 
 import conf.config
 
+import warnings
+
+warnings.filterwarnings("ignore", category=RuntimeWarning)
 
 def basic_single_asset_backtest(trades, days):
     df_trades = trades.copy()
@@ -102,12 +105,19 @@ def basic_single_asset_backtest_with_df(trades, days):
     final_wallet = df_days.iloc[-1]['wallet']
     buy_and_hold_pct = (df_days.iloc[-1]['price'] - df_days.iloc[0]['price']) / df_days.iloc[0]['price']
     buy_and_hold_wallet = initial_wallet + initial_wallet * buy_and_hold_pct
-    vs_hold_pct = (final_wallet - buy_and_hold_wallet) / buy_and_hold_wallet
+    try:
+        vs_hold_pct = (final_wallet - buy_and_hold_wallet) / buy_and_hold_wallet
+    except:
+        vs_hold_pct = 0
+        print("print exeception raised: vs_hold_pct = (final_wallet - buy_and_hold_wallet) / buy_and_hold_wallet")
+
     vs_usd_pct = (final_wallet - initial_wallet) / initial_wallet
     try:
         sharpe_ratio = (365 ** 0.5) * (df_days['daily_return'].mean() / df_days['daily_return'].std())
     except:
-        print("toto")
+        sharpe_ratio = 0
+        print("print exeception 0 raised: sharpe_ratio = (365 ** 0.5) * (df_days['daily_return'].mean() / df_days['daily_return'].std())")
+
     total_fees = df_trades['open_fee'].sum() + df_trades['close_fee'].sum()
 
     best_trade = df_trades['trade_result_pct'].max()
@@ -200,7 +210,11 @@ def basic_multi_asset_backtest(trades, days):
     buy_and_hold_wallet = initial_wallet + initial_wallet * buy_and_hold_pct
     vs_hold_pct = (final_wallet - buy_and_hold_wallet)/buy_and_hold_wallet
     vs_usd_pct = (final_wallet - initial_wallet)/initial_wallet
-    sharpe_ratio = (365**0.5)*(df_days['daily_return'].mean()/df_days['daily_return'].std())
+    try:
+        sharpe_ratio = (365**0.5)*(df_days['daily_return'].mean()/df_days['daily_return'].std())
+    except:
+        sharpe_ratio = 0
+        print("print exeception 1 raised: sharpe_ratio = (365**0.5)*(df_days['daily_return'].mean()/df_days['daily_return'].std())")
     
     print("Period: [{}] -> [{}]".format(df_days.iloc[0]["day"], df_days.iloc[-1]["day"]))
     print("Initial wallet: {} $".format(round(initial_wallet,2)))
@@ -332,7 +346,9 @@ def get_metrics(df_trades, df_days):
     try:
         sharpe_ratio = (365**0.5)*(df_days_copy['daily_return'].mean()/df_days_copy['daily_return'].std())
     except:
-        print("toto")
+        sharpe_ratio = 0
+        print("print exeception 2 raised: sharpe_ratio = (365**0.5)*(df_days_copy['daily_return'].mean()/df_days_copy['daily_return'].std())")
+
     df_days_copy['wallet_ath'] = df_days_copy['wallet'].cummax()
     df_days_copy['drawdown'] = df_days_copy['wallet_ath'] - df_days_copy['wallet']
     df_days_copy['drawdown_pct'] = df_days_copy['drawdown'] / df_days_copy['wallet_ath']
