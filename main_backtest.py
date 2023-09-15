@@ -15,7 +15,7 @@ from src.hull_suite import HullSuite
 from src.envelope import Envelope
 import src.backtest
 from src.benchmark import Benchmark
-from utilities.utils import create_directory, clean_df_columns, get_lst_intervals_name, clean_df, get_dir_strating_with, copy_files_to_target_dir, rm_dir, merge_csv
+from utilities.utils import create_directory, clean_df_columns, get_lst_intervals_name, clean_df, get_dir_strating_with, copy_files_to_target_dir, rm_dir, merge_csv, get_lst_dir_strating_with
 from src.bigwill import BigWill
 from src.cluc_may import ClucMay
 from src.scalping_engulfing import ScalpingEngulfing
@@ -47,7 +47,12 @@ if __name__ == '__main__':
             conf.config.COLAB = True
             results_path = conf.config.COLAB_DIR_ROOT + "./results/"
     else:
-        results_path = "./results/"
+        lst_dir_results = get_lst_dir_strating_with('./', "results_")
+        # Extract the numeric suffixes and convert them to integers
+        suffixes = [int(entry.split("_")[1]) for entry in lst_dir_results]
+        # Find the maximum value among the suffixes
+        max_suffix = max(suffixes) + 1
+        results_path = "./results_" + str(max_suffix) + "/"
 
     if conf.config.NO_WARNINGS:
         # To filter out all warnings and hide them

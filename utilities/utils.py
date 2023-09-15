@@ -128,3 +128,8 @@ def merge_csv(csv_dir , prefix, target):
 
 def get_lst_from_df_column(df, column):
     return list(dict.fromkeys(df[column].to_list()))
+
+def get_lst_dir_strating_with(directory_path, str_start_with):
+    # Use a list comprehension to find all directories starting with "toto"
+    lst_directories = [d for d in os.listdir(directory_path) if os.path.isdir(os.path.join(directory_path, d)) and d.startswith(str_start_with)]
+    return lst_directories
