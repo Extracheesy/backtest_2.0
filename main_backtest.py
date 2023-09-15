@@ -51,6 +51,7 @@ if __name__ == '__main__':
         # Extract the numeric suffixes and convert them to integers
         suffixes = [int(entry.split("_")[1]) for entry in lst_dir_results]
         if len(suffixes) == 0:
+            # First run
             max_suffix = 1
         else:
             # Find the maximum value among the suffixes
