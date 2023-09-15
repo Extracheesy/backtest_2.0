@@ -1,9 +1,9 @@
 from utilities.utils import add_n_columns_to_list
 
-GET_DATA = False
-RUN_BACKTEST = False
-RUN_BENCHMARK = False
-RUN_FILTER = False
+GET_DATA = True
+RUN_BACKTEST = True
+RUN_BENCHMARK = True
+RUN_FILTER = True
 GLOBAL_FILTER = True
 
 lst_symbol_ALL = [
@@ -112,10 +112,10 @@ tf = "1h"
 start = "2023-01-01 00:00:00"
 
 # symbol = "ALL"
-symbol = "BITGET"
+# symbol = "BITGET"
 # symbol = "BTC_ETH"
 # symbol = "ETH"
-# symbol = "BTC"
+symbol = "BTC"
 
 # lst_strategy = ["bollinger_reversion"]
 # lst_strategy = ["bol_trend", "bollinger_reversion"]

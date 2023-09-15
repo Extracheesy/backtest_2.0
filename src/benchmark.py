@@ -2,6 +2,7 @@ import pandas as pd
 import numpy as np
 import conf.config
 from itertools import product
+from datetime import datetime, timedelta
 import multiprocessing
 from utilities.utils import move_column_to_first_position, remove_values_from_lst, clean_df
 
@@ -27,6 +28,8 @@ class Benchmark():
         self.df_benchmark_pair_lst = pd.DataFrame(columns=conf.config.LST_HEADERS_PAIRS_BENCMARK)
         self.df_benchmark_pair_lst_compare = pd.DataFrame(columns=conf.config.LST_HEADERS_LST_PAIRS_COMPARE_BENCHMARK)
         self.df_benchmark_pair_lst_compare["pair"] = self.lst_pair
+        self.current_date = datetime.now()
+        self.year_day_month_string = self.current_date.strftime("%y%d%m")
 
     def run_benchmark(self):
         df = self.df.copy()
@@ -54,7 +57,10 @@ class Benchmark():
 
         self.df_transposed_final_wallet = self.df_transposed_final_wallet.round(4)
         self.df_transposed_final_wallet = clean_df(self.df_transposed_final_wallet)
-        self.df_transposed_final_wallet.to_csv(path + "benchmark_transposed_final_wallet.csv", sep=';')
+
+
+
+        self.df_transposed_final_wallet.to_csv(path + "benchmark_transposed_final_wallet-" + self.year_day_month_string + ".csv", sep=';')
 
     def get_lst_from_df_column(self,df, column):
         return list(dict.fromkeys(df[column].to_list()))
