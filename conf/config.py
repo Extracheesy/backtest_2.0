@@ -112,10 +112,10 @@ tf = "1h"
 start = "2023-01-01 00:00:00"
 
 # symbol = "ALL"
-# symbol = "BITGET"
+symbol = "BITGET"
 # symbol = "BTC_ETH"
 # symbol = "ETH"
-symbol = "BTC"
+# symbol = "BTC"
 
 # lst_strategy = ["bollinger_reversion"]
 # lst_strategy = ["bol_trend", "bollinger_reversion"]

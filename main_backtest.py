@@ -50,8 +50,11 @@ if __name__ == '__main__':
         lst_dir_results = get_lst_dir_strating_with('./', "results_")
         # Extract the numeric suffixes and convert them to integers
         suffixes = [int(entry.split("_")[1]) for entry in lst_dir_results]
-        # Find the maximum value among the suffixes
-        max_suffix = max(suffixes) + 1
+        if len(suffixes) == 0:
+            max_suffix = 1
+        else:
+            # Find the maximum value among the suffixes
+            max_suffix = max(suffixes) + 1
         if max_suffix < 10:
             str_max_suffix = "0" + str(max_suffix)
         else:
