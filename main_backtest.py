@@ -52,7 +52,11 @@ if __name__ == '__main__':
         suffixes = [int(entry.split("_")[1]) for entry in lst_dir_results]
         # Find the maximum value among the suffixes
         max_suffix = max(suffixes) + 1
-        results_path = "./results_" + str(max_suffix) + "/"
+        if max_suffix < 10:
+            str_max_suffix = "0" + str(max_suffix)
+        else:
+            str_max_suffix = str(max_suffix)
+        results_path = "./results_" + str_max_suffix + "/"
 
     if conf.config.NO_WARNINGS:
         # To filter out all warnings and hide them

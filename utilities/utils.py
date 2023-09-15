@@ -24,7 +24,12 @@ def clean_df_columns(df):
 def clean_df(df):
     # Identify and drop columns with only one unique element
     # columns_to_drop = [col for col in df.columns if df[col].nunique() == 1]
-    columns_to_drop = [col for col in df.columns if df[col].nunique() == 1 and col != 'strategy' and col != 'pair']
+    columns_to_drop = [col for col in df.columns if df[col].nunique() == 1
+                       and col != 'strategy'
+                       and col != 'pair'
+                       and col != 'total_$'
+                       and col != 'vs_hold_pct_avg'
+                       and col != 'positive_column']
 
     df = df.drop(columns=columns_to_drop)
 
